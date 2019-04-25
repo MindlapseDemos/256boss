@@ -1,0 +1,13 @@
+*.o
+*.swp
+*.d
+*.bin
+*.elf
+*.map
+*.sym
+*.disasm
+*.img
+*.log
+*.tga
+*.png
+
