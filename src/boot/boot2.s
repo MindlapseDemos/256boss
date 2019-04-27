@@ -25,6 +25,8 @@
 	# make sure any BIOS call didn't re-enable interrupts
 	cli
 
+	call setup_serial
+
 	# enter unreal mode
 	call unreal
 
@@ -457,8 +459,44 @@ clearscr:
 	ret
 
 	.set UART_DATA, 0x3f8
+	.set UART_DIVLO, 0x3f8
+	.set UART_DIVHI, 0x3f9
+	.set UART_FIFO, 0x3fa
+	.set UART_LCTL, 0x3fb
+	.set UART_MCTL, 0x3fc
 	.set UART_LSTAT, 0x3fd
+	.set DIV_9600, 115200 / 9600
+	.set LCTL_8N1, 0x03
+	.set LCTL_DLAB, 0x80
+	.set FIFO_ENABLE_CLEAR, 0x07
+	.set MCTL_DTR_RTS_OUT2, 0x0b
 	.set LST_TREG_EMPTY, 0x20
+
+setup_serial:
+	# set clock divisor
+	mov $LCTL_DLAB, %al
+	mov $UART_LCTL, %dx
+	out %al, %dx
+	mov $DIV_9600, %ax
+	mov $UART_DIVLO, %dx
+	out %al, %dx
+	shr $8, %ax
+	mov $UART_DIVHI, %dx
+	out %al, %dx
+	# set format 8n1
+	mov $LCTL_8N1, %al
+	mov $UART_LCTL, %dx
+	out %al, %dx
+	# clear and enable fifo
+	mov $FIFO_ENABLE_CLEAR, %al
+	mov $UART_FIFO, %dx
+	out %al, %dx
+	# assert RTS and DTR
+	mov $MCTL_DTR_RTS_OUT2, %al
+	mov $UART_MCTL, %dx
+	out %al, %dx
+	ret
+
 
 ser_putchar:
 	push %dx
