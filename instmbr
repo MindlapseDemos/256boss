@@ -1,0 +1,29 @@
+#!/bin/sh
+
+dev=$1
+if [ -z "$dev" ]; then
+	echo 'pass the device on which to install' >&2
+	exit 1
+fi
+
+# try to remake boot.img if it's missing
+if [ ! -f boot.img ]; then
+	make || exit 1
+fi
+
+# safety check
+if mount | grep ^$dev >/dev/null 2>&1; then
+	echo "device $dev seems to be in use." >&2
+	echo "Make sure it's the correct device, and unmount the following filesystems first:" >&2
+	echo "" >&2
+	mount | grep ^$dev >&2
+	exit 1
+fi
+
+# copy the existing MBR to preserve the partition table
+echo "saving copy of existing MBR to preserve partition table ..."
+dd if=$dev of=/tmp/instmbr.mbr bs=512 count=1 status=none
+echo "writing boot image to $dev ..."
+dd if=boot.img of=$dev bs=512 status=none
+echo "patching boot sector with saved partition table ..."
+dd if=/tmp/instmbr.mbr of=$dev bs=1 seek=440 skip=440 count=70 status=none
