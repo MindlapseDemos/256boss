@@ -37,15 +37,20 @@ void bdev_init(void)
 	}
 }
 
-/* TODO: fallback to CHS I/O if extended calls are not available */
 int bdev_read_sect(uint64_t lba, void *buf)
 {
-	return bios_ext_rw_sect(boot_drive_number, lba, OP_READ, buf);
+	if(have_bios_ext) {
+		return bios_ext_rw_sect(boot_drive_number, lba, OP_READ, buf);
+	}
+	return -1;	/* TODO */
 }
 
 int bdev_write_sect(uint64_t lba, void *buf)
 {
-	return bios_ext_rw_sect(boot_drive_number, lba, OP_WRITE, buf);
+	if(have_bios_ext) {
+		return bios_ext_rw_sect(boot_drive_number, lba, OP_WRITE, buf);
+	}
+	return -1;	/* TODO */
 }
 
 
