@@ -21,9 +21,14 @@
 	.section .boot2,"ax"
 
 	.set main_load_addr, 0x100000
+	.set drive_number, 0x7bec
 
 	# make sure any BIOS call didn't re-enable interrupts
 	cli
+
+	xor %eax, %eax
+	mov drive_number, %al
+	mov %eax, boot_drive_number
 
 	call setup_serial
 
@@ -43,9 +48,6 @@
 
 	# load the whole program into memory starting at 1MB
 	call load_main
-
-	#mov $0x13, %ax
-	#int $0x10
 
 	# load initial GDT
 	lgdt (gdt_lim)
@@ -250,7 +252,6 @@ rdfail_msg: .asciz "failed\n"
 
 read_retries: .short 0
 
-	.set drive_number, 0x7bec
 read_track:
 	# set es to the start of the destination buffer to allow reading in
 	# full 64k chunks if necessary
@@ -901,6 +902,11 @@ int_op:	int $0
 	pop %ebp
 	ret
 
+
+	.align 4
+	.global boot_drive_number
+boot_drive_number:
+	.long 0
 
 	# buffer used by the track loader ... to load tracks.
 	.align 16

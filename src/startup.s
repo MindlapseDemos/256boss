@@ -19,7 +19,7 @@
 
 	.extern _bss_start
 	.extern _bss_end
-	.extern pcboot_main
+	.extern kmain
 	.extern wait_vsync
 	.extern kb_getkey
 
@@ -37,8 +37,8 @@
 	rep stosl
 skip_bss_zero:
 
-	call pcboot_main
-	# pcboot_main never returns
+	call kmain
+	# kmain never returns
 0:	cli
 	hlt
 	jmp 0b

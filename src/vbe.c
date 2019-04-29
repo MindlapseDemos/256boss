@@ -4,12 +4,11 @@
 #include "vbe.h"
 #include "asmops.h"
 #include "int86.h"
+#include "boot.h"
 
 #define SEG_ADDR(s)	((uint32_t)(s) << 4)
 
 #define MODE_LFB	(1 << 14)
-
-extern unsigned char low_mem_buffer[];
 
 struct vbe_info *vbe_get_info(void)
 {

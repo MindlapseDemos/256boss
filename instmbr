@@ -27,3 +27,5 @@ echo "writing boot image to $dev ..."
 dd if=boot.img of=$dev bs=512 status=none
 echo "patching boot sector with saved partition table ..."
 dd if=/tmp/instmbr.mbr of=$dev bs=1 seek=440 skip=440 count=70 status=none
+
+sync

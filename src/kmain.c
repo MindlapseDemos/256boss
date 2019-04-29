@@ -1,5 +1,5 @@
 /*
-pcboot - bootable PC demo/game kernel
+256boss - bootable launcher for 256byte intros
 Copyright (C) 2018  John Tsiombikas <nuclear@member.fsf.org>
 
 This program is free software: you can redistribute it and/or modify
@@ -28,9 +28,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "video.h"
 #include "audio.h"
 #include "pci.h"
+#include "bootdev.h"
 
+#include "boot.h"
 
-void pcboot_main(void)
+void test(void);
+
+void kmain(void)
 {
 	init_segm();
 	init_intr();
@@ -41,16 +45,19 @@ void pcboot_main(void)
 
 	init_mem();
 
-	init_pci();
+	/*init_pci();*/
 
 	/* initialize the timer */
 	init_timer();
 
-	audio_init();
+	/*audio_init();*/
 
 	enable_intr();
 
-	printf("PCBoot kernel initialized\n");
+	bdev_init();
+
+	printf("256boss initialized\n");
+	test();
 
 	for(;;) {
 		int c;
@@ -67,4 +74,50 @@ void pcboot_main(void)
 			con_printf(71, 0, "[%ld]", nticks);
 		}
 	}
+}
+
+static unsigned char sectdata[512];
+
+struct part_record {
+	uint8_t stat;
+	uint8_t first_head, first_cyl, first_sect;
+	uint8_t type;
+	uint8_t last_head, last_cyl, last_sect;
+	uint32_t first_lba;
+	uint32_t nsect_lba;
+} __attribute__((packed));
+
+#define PTABLE_OFFS		0x1be
+
+void test(void)
+{
+	int i;
+	struct part_record *prec;
+	printf("Boot drive: %d\n", boot_drive_number);
+
+	if(bdev_read_sect(0, sectdata) == -1) {
+		printf("Failed to read sector 0\n");
+		return;
+	}
+
+	if(sectdata[510] != 0x55 || sectdata[511] != 0xaa) {
+		printf("invalid MBR, last bytes: %x %x\n", (unsigned int)sectdata[510],
+				(unsigned int)sectdata[511]);
+		return;
+	}
+
+	prec = (struct part_record*)(sectdata + PTABLE_OFFS);
+
+	printf("Partition table\n");
+	printf("---------------\n");
+	for(i=0; i<4; i++) {
+		/* ignore empty partitions */
+		if(prec[i].type == 0) {
+			continue;
+		}
+
+		printf("type: %x, start: %lu, size: %lu\n", (unsigned int)prec[i].type,
+				(unsigned long)prec[i].first_lba, (unsigned long)prec[i].nsect_lba);
+	}
+	printf("---------------\n");
 }
