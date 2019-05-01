@@ -3,6 +3,11 @@
 #include "bootdev.h"
 #include "boot.h"
 #include "int86.h"
+#include "panic.h"
+
+struct chs {
+	unsigned int cyl, head, tsect;
+};
 
 struct disk_access {
 	unsigned char pktsize;
@@ -14,12 +19,20 @@ struct disk_access {
 
 enum {OP_READ, OP_WRITE};
 
-static int bios_ext_rw_sect(int dev, uint64_t lba, int op, void *buf);
+#ifdef DBG_RESET_ON_FAIL
+static int bios_reset_dev(int dev);
+#endif
+static int bios_rw_sect_lba(int dev, uint64_t lba, int op, void *buf);
+static int bios_rw_sect_chs(int dev, struct chs *chs, int op, void *buf);
+static int get_drive_chs(int dev, struct chs *chs);
+static void calc_chs(uint64_t lba, struct chs *chs);
 
 static int have_bios_ext;
+static int num_cyl, num_heads, num_track_sect;
 
 void bdev_init(void)
 {
+	struct chs chs;
 	struct int86regs regs;
 
 	memset(&regs, 0, sizeof regs);
@@ -28,38 +41,83 @@ void bdev_init(void)
 	regs.edx = boot_drive_number;
 
 	int86(0x13, &regs);
-	if(regs.flags & FLAGS_CARRY) {
+	if(1) {//regs.flags & FLAGS_CARRY) { XXX
 		printf("BIOS does not support int13h extensions (LBA access)\n");
 		have_bios_ext = 0;
+
+		if(get_drive_chs(boot_drive_number, &chs) == -1) {
+			panic("drive (%d) parameter query failed\n", boot_drive_number);
+		}
+
+		num_cyl = chs.cyl;
+		num_heads = chs.head;
+		num_track_sect = chs.tsect;
+
+		printf("Drive params: %d cyl, %d heads, %d sect/track\n", num_cyl,
+				num_heads, num_track_sect);
 	} else {
 		printf("BIOS supports int13h extensions (LBA access)\n");
 		have_bios_ext = 1;
 	}
 }
 
+#define NRETRIES	3
+
 int bdev_read_sect(uint64_t lba, void *buf)
 {
+	int i;
+	struct chs chs;
+
 	if(have_bios_ext) {
-		return bios_ext_rw_sect(boot_drive_number, lba, OP_READ, buf);
+		return bios_rw_sect_lba(boot_drive_number, lba, OP_READ, buf);
 	}
-	return -1;	/* TODO */
+
+	calc_chs(lba, &chs);
+
+	for(i=0; i<NRETRIES; i++) {
+		if(bios_rw_sect_chs(boot_drive_number, &chs, OP_READ, buf) != -1) {
+			return 0;
+		}
+#ifdef DBG_RESET_ON_FAIL
+		bios_reset_dev(boot_drive_number);
+#endif
+	}
+	return -1;
 }
 
 int bdev_write_sect(uint64_t lba, void *buf)
 {
+	struct chs chs;
+
 	if(have_bios_ext) {
-		return bios_ext_rw_sect(boot_drive_number, lba, OP_WRITE, buf);
+		return bios_rw_sect_lba(boot_drive_number, lba, OP_WRITE, buf);
 	}
-	return -1;	/* TODO */
+
+	calc_chs(lba, &chs);
+	return bios_rw_sect_chs(boot_drive_number, &chs, OP_WRITE, buf);
 }
 
 
-static int bios_ext_rw_sect(int dev, uint64_t lba, int op, void *buf)
+#ifdef DBG_RESET_ON_FAIL
+static int bios_reset_dev(int dev)
+{
+	struct int86regs regs;
+
+	memset(&regs, 0, sizeof regs);
+	regs.edx = dev;
+
+	int86(0x13, &regs);
+
+	return (regs.flags & FLAGS_CARRY) ? -1 : 0;
+}
+#endif
+
+static int bios_rw_sect_lba(int dev, uint64_t lba, int op, void *buf)
 {
 	struct int86regs regs;
 	struct disk_access *dap = (struct disk_access*)low_mem_buffer;
 	uint32_t addr = (uint32_t)low_mem_buffer;
-	uint32_t xaddr = (addr + sizeof *dap + 65535) & 0xffff0000;
+	uint32_t xaddr = (addr + sizeof *dap + 15) & 0xfffffff0;
 	void *xbuf = (void*)xaddr;
 	int func;
 
@@ -96,3 +154,77 @@ static int bios_ext_rw_sect(int dev, uint64_t lba, int op, void *buf)
 	return 0;
 }
 
+static int bios_rw_sect_chs(int dev, struct chs *chs, int op, void *buf)
+{
+	struct int86regs regs;
+	uint32_t xaddr = (uint32_t)low_mem_buffer;
+	int func;
+
+	if(op == OP_READ) {
+		func = 2;
+	} else {
+		func = 3;
+		memcpy(low_mem_buffer, buf, 512);
+	}
+
+	memset(&regs, 0, sizeof regs);
+	regs.eax = (func << 8) | 1;	/* 1 sector */
+	regs.es = xaddr >> 4;	/* es:bx buffer */
+	regs.ecx = ((chs->cyl << 8) & 0xff00) | ((chs->cyl >> 10) & 0xc0) | chs->tsect;
+	regs.edx = dev | (chs->head << 8);
+
+	int86(0x13, &regs);
+
+	if(regs.flags & FLAGS_CARRY) {
+		return -1;
+	}
+
+	if(op == OP_READ) {
+		memcpy(buf, low_mem_buffer, 512);
+	}
+	return 0;
+}
+
+static int get_drive_chs(int dev, struct chs *chs)
+{
+	struct int86regs regs;
+
+	memset(&regs, 0, sizeof regs);
+	regs.eax = 0x800;
+	regs.edx = dev;
+
+	int86(0x13, &regs);
+
+	if(regs.flags & FLAGS_CARRY) {
+		return -1;
+	}
+
+	chs->cyl = (((regs.ecx >> 8) & 0xff) | ((regs.ecx << 2) & 0x300)) + 1;
+	chs->head = (regs.edx >> 8) + 1;
+	chs->tsect = regs.ecx & 0x3f;
+	return 0;
+}
+
+static void calc_chs(uint64_t lba, struct chs *chs)
+{
+	uint32_t lba32, trk;
+
+	if(lba >> 32) {
+		/* XXX: 64bit ops require libgcc, and I don't want to link that for
+		 * this. CHS I/O is only going to be for floppies and really old systems
+		 * anyway, so there's no point in supporting anything more than LBA32 in
+		 * the translation.
+		 */
+		const char *fmt = "calc_chs only supports 32bit LBA. requested: %llx\n"
+			"If you see this message, please file a bug report at:\n"
+			"  https://github.com/jtsiomb/256boss/issues\n"
+			"  or by email: nuclear@member.fsf.org\n";
+		panic(fmt, lba);
+	}
+
+	lba32 = (uint32_t)lba;
+	trk = lba32 / num_track_sect;
+	chs->tsect = (lba32 % num_track_sect) + 1;
+	chs->cyl = trk / num_heads;
+	chs->head = trk % num_heads;
+}

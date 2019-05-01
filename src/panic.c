@@ -44,7 +44,7 @@ void panic(const char *fmt, ...)
 
 	CALLER_EIP(eip);
 
-	printf("~~~~~ pcboot panic ~~~~~\n");
+	printf("~~~~~ 256boss panic ~~~~~\n");
 	va_start(ap, fmt);
 	vprintf(fmt, ap);
 	va_end(ap);

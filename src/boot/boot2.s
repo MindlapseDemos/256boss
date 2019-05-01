@@ -851,7 +851,6 @@ int86:
 	pop %es
 	pop %ds
 	# ignore fs and gs for now, don't think I'm going to need them
-	mov saved_esp, %esp
 
 	# move to the real-mode stack, accessible from ss=0
 	# just in case the BIOS call screws up our unreal mode
@@ -867,9 +866,9 @@ int_op:	int $0
 	mov %eax, saved_eax
 	mov %ds, saved_ds
 	mov %es, saved_es
-	pushfw
-	pop %ax
-	mov %ax, saved_flags
+	#pushfw
+	#popw %ax
+	#mov %ax, saved_flags
 
 	# re-enable protection
 	mov %cr0, %eax
@@ -894,8 +893,9 @@ int_op:	int $0
 	pushw %ax
 	mov saved_es, %ax
 	pushw %ax
-	mov saved_flags, %ax
-	pushw %ax
+	pushfw
+	#mov saved_flags, %ax
+	#pushw %ax
 	mov saved_eax, %eax
 	pushal
 	mov saved_esp, %esp
