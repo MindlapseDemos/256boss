@@ -15,12 +15,12 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#ifndef BOOTDEV_H_
-#define BOOTDEV_H_
+#include <stdio.h>
+#include "floppy.h"
+#include "asmops.h"
 
-void bdev_init(void);
-
-int bdev_read_sect(uint64_t lba, void *buf);
-int bdev_write_sect(uint64_t lba, void *buf);
-
-#endif	/* BOOTDEV_H_ */
+void floppy_motors_off(void)
+{
+	unsigned char dout = inb(FDC_REG_DOUT);
+	outb(dout & 0xf, FDC_REG_DOUT);
+}

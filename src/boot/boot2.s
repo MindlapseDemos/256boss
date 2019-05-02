@@ -1,4 +1,4 @@
-# pcboot - bootable PC demo/game kernel
+# 256boss - bootable launcher for 256byte intros
 # Copyright (C) 2018  John Tsiombikas <nuclear@member.fsf.org>
 # 
 # This program is free software: you can redistribute it and/or modify
@@ -231,11 +231,15 @@ ldloop:
 	# the BIOS might have enabled interrupts
 	cli
 
-	# just in case we were loaded from floppy, turn all floppy motors off
+	# if we were loaded from floppy, turn all floppy motors off
+	movb drive_number, %bl
+	and $0x80, %bl
+	jnz 0f
 	mov $0x3f2, %dx
 	in %dx, %al
-	and $0xf0, %al
+	and $0xf, %al
 	out %al, %dx
+0:
 
 	mov $10, %ax
 	call putchar

@@ -126,8 +126,6 @@ static inline void linefeed(void)
 void con_putchar(int c)
 {
 #ifdef CON_TEXTMODE
-	uint16_t *ptr;
-
 	switch(c) {
 	case '\n':
 		linefeed();

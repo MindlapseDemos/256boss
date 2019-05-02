@@ -1,5 +1,5 @@
-# pcboot - bootable PC demo/game kernel
-# Copyright (C) 2018  John Tsiombikas <nuclear@member.fsf.org>
+# 256boss - bootable launcher for 256byte intros
+# Copyright (C) 2018-2019  John Tsiombikas <nuclear@member.fsf.org>
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -89,20 +89,6 @@ intr_ret_local:
 	popa
 	/* remove error code and intr num from stack */
 	add $8, %esp
-	iret
-
-/* special case for the timer interrupt, to avoid all the overhead of
- * going through the C interrupt dispatcher 250 times each second
- */
-	.extern nticks
-	.global intr_entry_fast_timer
-intr_entry_fast_timer:
-	incl nticks
-	# signal end of interrupt
-	push %eax
-	mov $0x20, %al
-	out %al, $0x20
-	pop %eax
 	iret
 
 /* special case for IRQ 7 and IRQ 15, to catch spurious interrupts */

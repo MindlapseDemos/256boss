@@ -1,9 +1,31 @@
+/*
+256boss - bootable launcher for 256byte intros
+Copyright (C) 2018-2019  John Tsiombikas <nuclear@member.fsf.org>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY, without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
 #include <stdio.h>
 #include <string.h>
 #include "bootdev.h"
 #include "boot.h"
 #include "int86.h"
 #include "panic.h"
+#include "timer.h"
+#include "floppy.h"
+
+#define FLOPPY_MOTOR_OFF_TIMEOUT	4000
+#define DBG_RESET_ON_FAIL
 
 struct chs {
 	unsigned int cyl, head, tsect;
@@ -28,6 +50,7 @@ static int get_drive_chs(int dev, struct chs *chs);
 static void calc_chs(uint64_t lba, struct chs *chs);
 
 static int have_bios_ext;
+static int bdev_is_floppy;
 static int num_cyl, num_heads, num_track_sect;
 
 void bdev_init(void)
@@ -41,7 +64,7 @@ void bdev_init(void)
 	regs.edx = boot_drive_number;
 
 	int86(0x13, &regs);
-	if(1) {//regs.flags & FLAGS_CARRY) { XXX
+	if(1) {//(regs.flags & FLAGS_CARRY) || (regs.ecx & 1) == 0) { XXX
 		printf("BIOS does not support int13h extensions (LBA access)\n");
 		have_bios_ext = 0;
 
@@ -59,6 +82,8 @@ void bdev_init(void)
 		printf("BIOS supports int13h extensions (LBA access)\n");
 		have_bios_ext = 1;
 	}
+
+	bdev_is_floppy = !(boot_drive_number & 0x80);
 }
 
 #define NRETRIES	3
@@ -67,6 +92,11 @@ int bdev_read_sect(uint64_t lba, void *buf)
 {
 	int i;
 	struct chs chs;
+
+	if(bdev_is_floppy) {
+		cancel_alarm(floppy_motors_off);
+		set_alarm(FLOPPY_MOTOR_OFF_TIMEOUT, floppy_motors_off);
+	}
 
 	if(have_bios_ext) {
 		return bios_rw_sect_lba(boot_drive_number, lba, OP_READ, buf);
@@ -89,6 +119,11 @@ int bdev_write_sect(uint64_t lba, void *buf)
 {
 	struct chs chs;
 
+	if(bdev_is_floppy) {
+		cancel_alarm(floppy_motors_off);
+		set_alarm(FLOPPY_MOTOR_OFF_TIMEOUT, floppy_motors_off);
+	}
+
 	if(have_bios_ext) {
 		return bios_rw_sect_lba(boot_drive_number, lba, OP_WRITE, buf);
 	}
@@ -103,10 +138,14 @@ static int bios_reset_dev(int dev)
 {
 	struct int86regs regs;
 
+	printf("resetting drive %d ...", dev);
+
 	memset(&regs, 0, sizeof regs);
 	regs.edx = dev;
 
 	int86(0x13, &regs);
+
+	printf("%s\n", (regs.flags & FLAGS_CARRY) ? "failed" : "done");
 
 	return (regs.flags & FLAGS_CARRY) ? -1 : 0;
 }

@@ -1,6 +1,6 @@
 /*
 256boss - bootable launcher for 256byte intros
-Copyright (C) 2018  John Tsiombikas <nuclear@member.fsf.org>
+Copyright (C) 2018-2019  John Tsiombikas <nuclear@member.fsf.org>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "audio.h"
 #include "pci.h"
 #include "bootdev.h"
+#include "floppy.h"
 
 #include "boot.h"
 
@@ -69,6 +70,29 @@ void kmain(void)
 			} else {
 				printf("key: %d\n", c);
 			}
+
+			switch(c) {
+			case KB_F4:
+				printf("turning floppy motors off\n");
+				floppy_motors_off();
+				break;
+
+			case KB_F1:
+				printf("interrupt state\n");
+				printf(" IF: %s\n", get_intr_flag() ? "enabled" : "disabled");
+				printf(" PIC1 mask: %x\n", get_pic_mask(0));
+				printf(" PIC2 mask: %x\n", get_pic_mask(1));
+				break;
+
+			case KB_F2:
+				printf("unmasking interrupts\n");
+				disable_intr();
+				outb(0, 0x21);
+				outb(0, 0xa1);
+				enable_intr();
+				break;
+			}
+
 		}
 		if((nticks % 250) == 0) {
 			con_printf(71, 0, "[%ld]", nticks);
