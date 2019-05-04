@@ -810,6 +810,8 @@ saved_eax: .long 0
 saved_es: .word 0
 saved_ds: .word 0
 saved_flags: .word 0
+saved_pic1_mask: .byte 0
+saved_pic2_mask: .byte 0
 
 	# drop back to unreal mode to call 16bit interrupt
 	.global int86
@@ -821,6 +823,16 @@ int86:
 	# save protected mode IDTR and replace it with the real mode vectors
 	sidt (saved_idtr)
 	lidt (rmidt)
+
+	# save PIC masks
+	pushl $0
+	call get_pic_mask
+	add $4, %esp
+	mov %al, saved_pic1_mask
+	pushl $1
+	call get_pic_mask
+	add $4, %esp
+	mov %al, saved_pic2_mask
 
 	# modify the int instruction. do this here before the
 	# cs-load jumps, to let them flush the instruction cache
@@ -903,6 +915,18 @@ int_op:	int $0
 	mov saved_eax, %eax
 	pushal
 	mov saved_esp, %esp
+
+	movzbl saved_pic1_mask, %eax
+	push %eax
+	pushl $0
+	call set_pic_mask
+	add $8, %esp
+
+	movzbl saved_pic2_mask, %eax
+	push %eax
+	pushl $1
+	call set_pic_mask
+	add $8, %esp
 
 	# restore 32bit interrupt descriptor table
 	lidt (saved_idtr)

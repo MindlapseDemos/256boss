@@ -197,6 +197,11 @@ void set_intr_entry(int num, void (*handler)(void))
 	gate_desc(idt + num, selector(SEGM_KCODE, 0), (uint32_t)handler, dpl, type);
 }
 
+void set_pic_mask(int pic, unsigned char mask)
+{
+	outb(mask, pic > 0 ? PIC2_DATA : PIC1_DATA);
+}
+
 unsigned char get_pic_mask(int pic)
 {
 	return inb(pic > 0 ? PIC2_DATA : PIC1_DATA);
@@ -214,8 +219,8 @@ void mask_irq(int irq)
 		irq -= 8;
 	}
 
-	mask = inb(PIC2_DATA) | (1 << irq);
-	outb(mask, PIC2_DATA);
+	mask = inb(port) | (1 << irq);
+	outb(mask, port);
 }
 
 void unmask_irq(int irq)
@@ -230,8 +235,8 @@ void unmask_irq(int irq)
 		irq -= 8;
 	}
 
-	mask = inb(PIC2_DATA) & ~(1 << irq);
-	outb(mask, PIC2_DATA);
+	mask = inb(port) & ~(1 << irq);
+	outb(mask, port);
 }
 
 

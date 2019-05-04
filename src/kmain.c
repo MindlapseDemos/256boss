@@ -58,7 +58,6 @@ void kmain(void)
 	bdev_init();
 
 	printf("256boss initialized\n");
-	test();
 
 	for(;;) {
 		int c;
@@ -72,6 +71,10 @@ void kmain(void)
 			}
 
 			switch(c) {
+			case ' ':
+				test();
+				break;
+
 			case KB_F4:
 				printf("turning floppy motors off\n");
 				floppy_motors_off();
