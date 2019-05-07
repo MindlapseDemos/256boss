@@ -16,13 +16,24 @@ CFLAGS = $(ccarch) -march=i386 $(warn) $(opt) $(dbg) $(gccopt) $(inc) $(def)
 ASFLAGS = $(asarch) -march=i386 $(dbg) -nostdinc -fno-builtin $(inc)
 LDFLAGS = $(ldarch) -nostdlib -T 256boss.ld -print-gc-sections
 
-QEMU_FLAGS = -fda floppy.img -serial file:serial.log -soundhw sb16
+#QEMU_FLAGS = -fda floppy.img -serial file:serial.log -soundhw sb16
+QEMU_FLAGS = -hda disk.img -serial file:serial.log -soundhw sb16
 
 ifneq ($(shell uname -m), i386)
 	ccarch = -m32
 	asarch = --32
 	ldarch = -m elf_i386
 endif
+
+disk.img: part.img
+	dd if=/dev/zero of=$@ bs=1024 count=65536
+	echo start=2048 type=c | sfdisk $@
+	dd if=$< of=$@ bs=512 seek=2048 conv=notrunc
+	./instmbr $@
+
+part.img: boot.img
+	dd if=/dev/zero of=$@ bs=1024 count=63488
+	mkfs -t vfat -n 256BOSS $@
 
 floppy.img: boot.img
 	dd if=/dev/zero of=$@ bs=512 count=2880
