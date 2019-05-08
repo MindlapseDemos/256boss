@@ -6,8 +6,8 @@ if [ -z "$dev" ]; then
 	exit 1
 fi
 
-# try to remake boot.img if it's missing
-if [ ! -f boot.img ]; then
+# try to remake 256boss.img if it's missing
+if [ ! -f 256boss.img ]; then
 	make || exit 1
 fi
 
@@ -24,7 +24,7 @@ fi
 echo "saving copy of existing MBR to preserve partition table ..."
 dd if=$dev of=/tmp/instmbr.mbr bs=512 count=1 status=none
 echo "writing boot image to $dev ..."
-dd if=boot.img of=$dev bs=512 status=none conv=notrunc
+dd if=256boss.img of=$dev bs=512 status=none conv=notrunc
 echo "patching boot sector with saved partition table ..."
 dd if=/tmp/instmbr.mbr of=$dev bs=1 seek=440 skip=440 count=70 status=none conv=notrunc
 

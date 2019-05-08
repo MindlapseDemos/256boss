@@ -5,8 +5,8 @@ if [ -n "$1" ]; then
 	dev="$1"
 fi
 
-# try to remake boot.img if it's missing
-if [ ! -f boot.img ]; then
+# try to remake 256boss.img if it's missing
+if [ ! -f 256boss.img ]; then
 	make || exit 1
 fi
 
@@ -19,7 +19,7 @@ if mount | grep ^$dev >/dev/null 2>&1; then
 	exit 1
 fi
 
-imgsz=`wc -c boot.img | awk '{print $1}'`
+imgsz=`wc -c 256boss.img | awk '{print $1}'`
 nsect=`echo "($imgsz + 511) / 512" | bc`
 dd if=floppy.img of=$dev bs=512 count=$nsect
 

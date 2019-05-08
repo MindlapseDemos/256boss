@@ -25,6 +25,9 @@ ifneq ($(shell uname -m), i386)
 	ldarch = -m elf_i386
 endif
 
+.PHONY: all
+all: disk.img floppy.img
+
 disk.img: 256boss.img blank.img
 	@echo
 	@echo - patching 256boss onto the blank disk image ...
