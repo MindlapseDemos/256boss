@@ -64,7 +64,7 @@ void bdev_init(void)
 	regs.edx = boot_drive_number;
 
 	int86(0x13, &regs);
-	if(1) {//(regs.flags & FLAGS_CARRY) || (regs.ecx & 1) == 0) { XXX
+	if((regs.flags & FLAGS_CARRY) || (regs.ecx & 1) == 0) {
 		printf("BIOS does not support int13h extensions (LBA access)\n");
 		have_bios_ext = 0;
 

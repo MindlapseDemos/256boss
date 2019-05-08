@@ -25,17 +25,24 @@ ifneq ($(shell uname -m), i386)
 	ldarch = -m elf_i386
 endif
 
-disk.img: part.img
+disk.img: 256boss.img blank.img
+	@echo
+	@echo - patching 256boss onto the blank disk image ...
+	cp blank.img $@
+	dd if=256boss.img of=$@ bs=512 status=none conv=notrunc
+	dd if=blank.img of=$@ bs=1 seek=440 skip=440 count=70 status=none conv=notrunc
+
+blank.img:
+	@echo
+	@echo - generating blank disk image with FAT partition ...
+	dd if=/dev/zero of=part.img bs=1024 count=63488
+	mkfs -t vfat -n 256BOSS part.img
 	dd if=/dev/zero of=$@ bs=1024 count=65536
 	echo start=2048 type=c | sfdisk $@
-	dd if=$< of=$@ bs=512 seek=2048 conv=notrunc
-	./instmbr $@
+	dd if=part.img of=$@ bs=512 seek=2048 conv=notrunc
+	rm part.img
 
-part.img: boot.img
-	dd if=/dev/zero of=$@ bs=1024 count=63488
-	mkfs -t vfat -n 256BOSS $@
-
-floppy.img: boot.img
+floppy.img: 256boss.img
 	dd if=/dev/zero of=$@ bs=512 count=2880
 	dd if=$< of=$@ conv=notrunc
 
@@ -46,7 +53,7 @@ floppy.img: boot.img
 	mkisofs -o $@ -R -J -V 256boss -b $< cdrom
 
 
-boot.img: bootldr.bin $(bin)
+256boss.img: bootldr.bin $(bin)
 	cat bootldr.bin $(bin) >$@
 
 # bootldr.bin will contain only .boot and .boot2
@@ -70,7 +77,7 @@ $(elf): $(obj)
 
 .PHONY: clean
 clean:
-	rm -f $(obj) $(bin) boot.img floppy.img link.map
+	rm -f $(obj) $(bin) 256boss.img floppy.img disk.img link.map
 
 .PHONY: cleandep
 cleandep:
