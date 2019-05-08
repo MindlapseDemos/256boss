@@ -18,6 +18,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef PANIC_H_
 #define PANIC_H_
 
-void panic(const char *fmt, ...);
+void panic(const char *fmt, ...) __attribute__((noreturn));
 
 #endif	/* PANIC_H_ */

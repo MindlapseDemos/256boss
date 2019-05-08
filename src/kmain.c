@@ -31,6 +31,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "bootdev.h"
 #include "floppy.h"
 #include "part.h"
+#include "fs.h"
 
 
 void test(void);
@@ -105,12 +106,19 @@ void kmain(void)
 
 void test(void)
 {
-	int npart;
+	int i, npart, num_mounts = 0;
 	struct partition ptab[32];
+	struct fs_node *tmpnode[32] = {0};
 
 	if((npart = read_partitions(-1, ptab, sizeof ptab / sizeof *ptab)) <= 0) {
 		return;
 	}
 
 	print_partition_table(ptab, npart);
+
+	for(i=0; i<npart; i++) {
+		if(fs_mount(-1, ptab[i].start_sect, ptab[i].size_sect, tmpnode[num_mounts]) != -1) {
+			num_mounts++;
+		}
+	}
 }

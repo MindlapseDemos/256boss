@@ -15,48 +15,34 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#ifndef FS_H_
-#define FS_H_
+#include "fs.h"
 
-#include <inttypes.h>
+struct fs_operations fs_fat_ops;
 
-enum {
-	FSTYPE_FAT,
-
-	NUM_FSTYPES
+static struct fs_operations *fsops[] = {
+	&fs_fat_ops,
+	0
 };
 
-enum {
-	FSNODE_DIR,
-	FSNODE_FILE
-};
-
-struct filesystem;
-
-struct fs_node {
-	struct filesystem *fs;
-	int type;
-	int nref;
-	void *ndata;
-	struct fs_node *mnt;
-};
-
-struct fs_operations {
-	void *(*create)(int dev, uint64_t start, uint64_t size);
-	void (*destroy)(void *fsdata);
-
-	struct fs_node *(*lookup)(void *fsdata, const char *path);
-};
-
-struct filesystem {
-	int type;
-	struct fs_node *parent;
-	struct fs_operations *fsop;
+int fs_mount(int dev, uint64_t start, uint64_t size, struct fs_node *parent)
+{
+	int i;
 	void *fsdata;
-};
 
-struct fs_node *fs_root;
+	if(!parent && fs_root) {
+		printf("fs_mount error: root filesystem already mounted!\n");
+		return -1;
+	}
 
-int fs_mount(int dev, uint64_t start, uint64_t size, struct fs_node *parent);
+	for(i=0; fsops[i]; i++) {
+		/* TODO: create should return a struct filesystem, which should contain the
+		 * per-filesystem data pointer in it
+		 */
+		if((fsdata = fsops[i]->create(dev, start, size))) {
+			return 0;
+		}
+	}
 
-#endif	/* FS_H_ */
+	printf("failed to mount filesystem dev: %d, start %llu\n", dev, (unsigned long long)start);
+	return -1;
+}
