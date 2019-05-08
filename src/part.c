@@ -14,7 +14,6 @@ struct part_record {
 } __attribute__((packed));
 
 static int read_sector(int dev, uint64_t sidx);
-static const char *printsz(unsigned int sz_sect);
 static const char *ptype_name(int type);
 
 static unsigned char sectdata[512];
@@ -80,7 +79,7 @@ int read_partitions(int dev, struct partition *ptab, int ptabsz)
 			/* found a proper partition */
 			nparts++;
 
-			if(!ptab) {
+			if(ptab) {
 				part->attr = prec[i].type;
 
 				if(prec[i].stat & 0x80) {
@@ -91,6 +90,7 @@ int read_partitions(int dev, struct partition *ptab, int ptabsz)
 				}
 				part->start_sect = prec[i].first_lba + first_ebr_offs;
 				part->size_sect = prec[i].nsect_lba;
+				part++;
 			}
 		}
 
@@ -105,16 +105,14 @@ void print_partition_table(struct partition *ptab, int npart)
 	int i;
 	struct partition *p = ptab;
 
-	printf("Partition table\n");
-	printf("---------------\n");
+	printf("Found %d partitions\n", npart);
 	for(i=0; i<npart; i++) {
 		printf("%d%c ", i, PART_IS_ACT(p->attr) ? '*' : ' ');
 		printf("(%s) %-20s ", PART_IS_PRIM(p->attr) ? "pri" : "log", ptype_name(PART_TYPE(p->attr)));
 		printf("start: %-10llu ", (unsigned long long)p->start_sect);
-		printf("size: %-10llu [%s]\n", (unsigned long long)p->size_sect, printsz(p->size_sect));
+		printf("size: %-10llu\n", (unsigned long long)p->size_sect);
 		p++;
 	}
-	printf("---------------\n");
 }
 
 static int read_sector(int dev, uint64_t sidx)
@@ -128,23 +126,6 @@ static int read_sector(int dev, uint64_t sidx)
 
 	printf("BUG: reading partitions of drives other than the boot drive not implemented yet\n");
 	return -1;
-}
-
-static const char *printsz(unsigned int sz_sect)
-{
-	int i = 0;
-	const char *suffix[] = { "kb", "mb", "gb", "tb", "pb", 0 };
-	static char buf[128];
-
-	float sz = (float)sz_sect / 2.0;
-
-	while(sz > 1024.0 && suffix[i + 1]) {
-		sz /= 1024.0;
-		i++;
-	}
-
-	sprintf(buf, "%.1f %s", sz, suffix[i]);
-	return buf;
 }
 
 static const char *ptype_name(int type)

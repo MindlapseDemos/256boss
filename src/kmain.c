@@ -62,7 +62,7 @@ void kmain(void)
 	for(;;) {
 		int c;
 
-		halt_cpu();
+		//halt_cpu();
 		while((c = kb_getkey()) >= 0) {
 			if(isprint(c)) {
 				printf("key: %d '%c'\n", c, (char)c);
