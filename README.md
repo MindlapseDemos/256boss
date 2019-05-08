@@ -24,9 +24,10 @@ painless way to run 256byte intros on real computers, without any hassle other
 than inserting a USB stick, rebooting, and possibly selecting the USB stick from
 a boot menu.
 
-Just create a FAT filesystem on the USB stick, copy every 256byte intro you want
-onto it, and install 256boss on that USB stick by following our simple
-installation instructions for each platform.
+Use it to watch 256byte releases at home, or use it to run a 256byte compo at a
+demoparty. Just create a FAT filesystem on the USB stick, copy every 256byte
+intro you want onto it, and install 256boss on that USB stick by following our
+simple installation instructions for each platform.
 
 *Not done yet* ... more info as the project progresses, and the concept becomes
 a reality.
