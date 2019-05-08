@@ -30,8 +30,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "pci.h"
 #include "bootdev.h"
 #include "floppy.h"
+#include "part.h"
 
-#include "boot.h"
 
 void test(void);
 
@@ -103,48 +103,14 @@ void kmain(void)
 	}
 }
 
-static unsigned char sectdata[512];
-
-struct part_record {
-	uint8_t stat;
-	uint8_t first_head, first_cyl, first_sect;
-	uint8_t type;
-	uint8_t last_head, last_cyl, last_sect;
-	uint32_t first_lba;
-	uint32_t nsect_lba;
-} __attribute__((packed));
-
-#define PTABLE_OFFS		0x1be
-
 void test(void)
 {
-	int i;
-	struct part_record *prec;
-	printf("Boot drive: %d\n", boot_drive_number);
+	int npart;
+	struct partition ptab[32];
 
-	if(bdev_read_sect(0, sectdata) == -1) {
-		printf("Failed to read sector 0\n");
+	if((npart = read_partitions(-1, ptab, sizeof ptab / sizeof *ptab)) <= 0) {
 		return;
 	}
 
-	if(sectdata[510] != 0x55 || sectdata[511] != 0xaa) {
-		printf("invalid MBR, last bytes: %x %x\n", (unsigned int)sectdata[510],
-				(unsigned int)sectdata[511]);
-		return;
-	}
-
-	prec = (struct part_record*)(sectdata + PTABLE_OFFS);
-
-	printf("Partition table\n");
-	printf("---------------\n");
-	for(i=0; i<4; i++) {
-		/* ignore empty partitions */
-		if(prec[i].type == 0) {
-			continue;
-		}
-
-		printf("type: %x, start: %lu, size: %lu\n", (unsigned int)prec[i].type,
-				(unsigned long)prec[i].first_lba, (unsigned long)prec[i].nsect_lba);
-	}
-	printf("---------------\n");
+	print_partition_table(ptab, npart);
 }
