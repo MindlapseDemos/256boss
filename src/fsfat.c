@@ -17,7 +17,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <inttypes.h>
+#include <ctype.h>
 #include "fs.h"
 #include "bootdev.h"
 #include "boot.h"
@@ -26,9 +28,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 enum { FAT12, FAT16, FAT32, EXFAT };
 static const char *typestr[] = { "fat12", "fat16", "fat32", "exfat" };
 
+struct fat_dirent;
+
 struct fatfs {
 	int type;
 	int dev;
+	uint64_t start_sect;
 	uint32_t size;
 	int cluster_size;
 	int fat_size;
@@ -71,7 +76,7 @@ struct bparam_ext32 {
 	uint32_t fat_size;
 	uint16_t flags;
 	uint16_t version;
-	uint32_t num_root_clusters;
+	uint32_t root_clust;
 	uint16_t fsinfo_sect;
 	uint16_t backup_boot_sect;
 	char junk[12];
@@ -115,17 +120,18 @@ static unsigned char sectbuf[512];
 
 static void *create(int dev, uint64_t start, uint64_t size)
 {
+	char *endp;
 	struct fatfs *fs;
 	struct bparam *bpb;
-	/*struct bparam_ext16 *bpb16;*/
+	struct bparam_ext16 *bpb16;
 	struct bparam_ext32 *bpb32;
 
 	if(read_sector(dev, start, sectbuf) == -1) {
 		return 0;
 	}
 	bpb = (struct bparam*)sectbuf;
-	/*bpb16 = (struct bparam_ext16*)sectbuf + sizeof *bpb;*/
-	bpb32 = (struct bparam_ext32*)sectbuf + sizeof *bpb;
+	bpb16 = (struct bparam_ext16*)(sectbuf + sizeof *bpb);
+	bpb32 = (struct bparam_ext32*)(sectbuf + sizeof *bpb);
 
 	if(bpb->jmp[0] != 0xeb || bpb->jmp[2] != 0x90) {
 		return 0;
@@ -134,12 +140,14 @@ static void *create(int dev, uint64_t start, uint64_t size)
 	if(!(fs = malloc(sizeof *fs))) {
 		panic("FAT: create failed to allocate memory for the filesystem structure\n");
 	}
+	memset(fs, 0, sizeof *fs);
 	fs->dev = dev < 0 ? boot_drive_number : dev;
+	fs->start_sect = start;
 	fs->size = bpb->num_sectors ? bpb->num_sectors : bpb->num_sectors32;
 	fs->cluster_size = bpb->cluster_size;
 	fs->fat_size = bpb->fat_size ? bpb->fat_size : bpb32->fat_size;
 	fs->fat_sect = bpb->reserved_sect;
-	fs->root_sect = 0;	/* TODO */
+	fs->root_sect = fs->fat_sect + fs->fat_size * bpb->num_fats;
 	fs->root_size = (bpb->num_dirent * sizeof(struct fat_dirent) + bpb->sect_bytes - 1) / bpb->sect_bytes;
 	fs->first_data_sect = bpb->reserved_sect + bpb->num_fats * fs->fat_size + fs->root_size;
 	fs->num_data_sect = fs->size - (bpb->reserved_sect + bpb->num_fats * fs->fat_size + fs->root_size);
@@ -155,7 +163,30 @@ static void *create(int dev, uint64_t start, uint64_t size)
 		fs->type = EXFAT;
 	}
 
+	switch(fs->type) {
+	case FAT16:
+		memcpy(fs->label, bpb16->label, sizeof bpb16->label);
+		break;
+
+	case FAT32:
+	case EXFAT:
+		fs->root_sect = bpb32->root_clust / fs->cluster_size;
+		memcpy(fs->label, bpb32->label, sizeof bpb32->label);
+		break;
+
+	default:
+		break;
+	}
+
+	endp = fs->label + sizeof fs->label - 2;
+	while(endp >= fs->label && isspace(*endp)) {
+		*endp-- = 0;
+	}
+
 	printf("opened %s filesystem dev: %x, start: %lld\n", typestr[fs->type], fs->dev, start);
+	if(fs->label[0]) {
+		printf("  volume label: %s\n", fs->label);
+	}
 	printf("  size: %lu sectors (%llu bytes)\n", (unsigned long)fs->size,
 			(unsigned long long)fs->size * bpb->sect_bytes);
 	printf("  sector size: %d bytes\n", bpb->sect_bytes);
