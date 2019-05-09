@@ -23,7 +23,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "boot.h"
 #include "panic.h"
 
+enum { FAT12, FAT16, FAT32, EXFAT };
+static const char *typestr[] = { "fat12", "fat16", "fat32", "exfat" };
+
 struct fatfs {
+	int type;
 	int dev;
 	uint32_t size;
 	int cluster_size;
@@ -141,7 +145,17 @@ static void *create(int dev, uint64_t start, uint64_t size)
 	fs->num_data_sect = fs->size - (bpb->reserved_sect + bpb->num_fats * fs->fat_size + fs->root_size);
 	fs->num_clusters = fs->num_data_sect / fs->cluster_size;
 
-	printf("opened fat filesystem dev: %x, start: %lld\n", fs->dev, start);
+	if(fs->num_clusters < 4085) {
+		fs->type = FAT12;
+	} else if(fs->num_clusters < 65525) {
+		fs->type = FAT16;
+	} else if(fs->num_clusters < 268435445) {
+		fs->type = FAT32;
+	} else {
+		fs->type = EXFAT;
+	}
+
+	printf("opened %s filesystem dev: %x, start: %lld\n", typestr[fs->type], fs->dev, start);
 	printf("  size: %lu sectors (%llu bytes)\n", (unsigned long)fs->size,
 			(unsigned long long)fs->size * bpb->sect_bytes);
 	printf("  sector size: %d bytes\n", bpb->sect_bytes);
