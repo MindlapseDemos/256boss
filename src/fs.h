@@ -26,37 +26,32 @@ enum {
 	NUM_FSTYPES
 };
 
-enum {
-	FSNODE_DIR,
-	FSNODE_FILE
-};
-
-struct filesystem;
-
-struct fs_node {
-	struct filesystem *fs;
-	int type;
-	int nref;
-	void *ndata;
-	struct fs_node *mnt;
-};
+struct filesys;
+struct fs_dir;
 
 struct fs_operations {
-	void *(*create)(int dev, uint64_t start, uint64_t size);
-	void (*destroy)(void *fsdata);
+	void (*destroy)(struct filesys *fs);
 
-	struct fs_node *(*lookup)(void *fsdata, const char *path);
+	struct fs_dir *(*opendir)(struct filesys *fs, const char *path);
+	void (*closedir)(struct filesys *fs, struct fs_dir *dir);
 };
 
-struct filesystem {
+struct filesys {
 	int type;
-	struct fs_node *parent;
 	struct fs_operations *fsop;
-	void *fsdata;
+	struct fs_dir *root;
+	void *data;
 };
 
-struct fs_node *fs_root;
+struct fs_dir {
+	struct filesys *fs, *mnt;
+	struct fs_dirent *ent;
+	int num_ent;
+	void *data;
+};
 
-int fs_mount(int dev, uint64_t start, uint64_t size, struct fs_node *parent);
+struct filesys *rootfs;
+
+int fs_mount(int dev, uint64_t start, uint64_t size, struct fs_dir *parent);
 
 #endif	/* FS_H_ */

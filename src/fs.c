@@ -18,28 +18,29 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <stdio.h>
 #include "fs.h"
 
-struct fs_operations fs_fat_ops;
+struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size);
 
-static struct fs_operations *fsops[] = {
-	&fs_fat_ops,
-	0
+static struct filesys *(*createfs[])(int, uint64_t, uint64_t) = {
+	fsfat_create
 };
 
-int fs_mount(int dev, uint64_t start, uint64_t size, struct fs_node *parent)
+int fs_mount(int dev, uint64_t start, uint64_t size, struct fs_dir *parent)
 {
 	int i;
-	void *fsdata;
+	struct filesys *fs;
 
-	if(!parent && fs_root) {
+	if(!parent && rootfs) {
 		printf("fs_mount error: root filesystem already mounted!\n");
 		return -1;
 	}
 
-	for(i=0; fsops[i]; i++) {
-		/* TODO: create should return a struct filesystem, which should contain the
-		 * per-filesystem data pointer in it
-		 */
-		if((fsdata = fsops[i]->create(dev, start, size))) {
+	for(i=0; i<NUM_FSTYPES; i++) {
+		if((fs = createfs[i](dev, start, size))) {
+			if(parent) {
+				parent->mnt = fs;
+			} else {
+				rootfs = fs;
+			}
 			return 0;
 		}
 	}

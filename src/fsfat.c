@@ -103,25 +103,26 @@ struct fat_dirent {
 	uint32_t size_bytes;
 } __attribute__((packed));
 
-static void *create(int dev, uint64_t start, uint64_t size);
-static void destroy(void *fsdata);
-static struct fs_node *lookup(void *fsdata, const char *path);
+static void destroy(struct filesys *fs);
+
+static struct fs_dir *opendir(struct filesys *fs, const char *path);
+static void closedir(struct filesys *fs, struct fs_dir *dir);
 
 static int read_sector(int dev, uint64_t sidx, void *sect);
 
-struct fs_operations fs_fat_ops = {
-	create,
+static struct fs_operations fs_fat_ops = {
 	destroy,
-	lookup
+	opendir, closedir
 };
 
 static unsigned char sectbuf[512];
 
 
-static void *create(int dev, uint64_t start, uint64_t size)
+struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 {
 	char *endp;
-	struct fatfs *fs;
+	struct filesys *fs;
+	struct fatfs *fatfs;
 	struct bparam *bpb;
 	struct bparam_ext16 *bpb16;
 	struct bparam_ext32 *bpb32;
@@ -137,80 +138,95 @@ static void *create(int dev, uint64_t start, uint64_t size)
 		return 0;
 	}
 
-	if(!(fs = malloc(sizeof *fs))) {
-		panic("FAT: create failed to allocate memory for the filesystem structure\n");
+	if(!(fatfs = malloc(sizeof *fatfs))) {
+		panic("FAT: create failed to allocate memory for the fat filesystem data\n");
 	}
-	memset(fs, 0, sizeof *fs);
-	fs->dev = dev < 0 ? boot_drive_number : dev;
-	fs->start_sect = start;
-	fs->size = bpb->num_sectors ? bpb->num_sectors : bpb->num_sectors32;
-	fs->cluster_size = bpb->cluster_size;
-	fs->fat_size = bpb->fat_size ? bpb->fat_size : bpb32->fat_size;
-	fs->fat_sect = bpb->reserved_sect;
-	fs->root_sect = fs->fat_sect + fs->fat_size * bpb->num_fats;
-	fs->root_size = (bpb->num_dirent * sizeof(struct fat_dirent) + bpb->sect_bytes - 1) / bpb->sect_bytes;
-	fs->first_data_sect = bpb->reserved_sect + bpb->num_fats * fs->fat_size + fs->root_size;
-	fs->num_data_sect = fs->size - (bpb->reserved_sect + bpb->num_fats * fs->fat_size + fs->root_size);
-	fs->num_clusters = fs->num_data_sect / fs->cluster_size;
+	memset(fatfs, 0, sizeof *fatfs);
+	fatfs->dev = dev < 0 ? boot_drive_number : dev;
+	fatfs->start_sect = start;
+	fatfs->size = bpb->num_sectors ? bpb->num_sectors : bpb->num_sectors32;
+	fatfs->cluster_size = bpb->cluster_size;
+	fatfs->fat_size = bpb->fat_size ? bpb->fat_size : bpb32->fat_size;
+	fatfs->fat_sect = bpb->reserved_sect;
+	fatfs->root_sect = fatfs->fat_sect + fatfs->fat_size * bpb->num_fats;
+	fatfs->root_size = (bpb->num_dirent * sizeof(struct fat_dirent) + bpb->sect_bytes - 1) / bpb->sect_bytes;
+	fatfs->first_data_sect = bpb->reserved_sect + bpb->num_fats * fatfs->fat_size + fatfs->root_size;
+	fatfs->num_data_sect = fatfs->size - (bpb->reserved_sect + bpb->num_fats * fatfs->fat_size + fatfs->root_size);
+	fatfs->num_clusters = fatfs->num_data_sect / fatfs->cluster_size;
 
-	if(fs->num_clusters < 4085) {
-		fs->type = FAT12;
-	} else if(fs->num_clusters < 65525) {
-		fs->type = FAT16;
-	} else if(fs->num_clusters < 268435445) {
-		fs->type = FAT32;
+	if(fatfs->num_clusters < 4085) {
+		fatfs->type = FAT12;
+	} else if(fatfs->num_clusters < 65525) {
+		fatfs->type = FAT16;
+	} else if(fatfs->num_clusters < 268435445) {
+		fatfs->type = FAT32;
 	} else {
-		fs->type = EXFAT;
+		fatfs->type = EXFAT;
 	}
 
-	switch(fs->type) {
+	switch(fatfs->type) {
 	case FAT16:
-		memcpy(fs->label, bpb16->label, sizeof bpb16->label);
+		memcpy(fatfs->label, bpb16->label, sizeof bpb16->label);
 		break;
 
 	case FAT32:
 	case EXFAT:
-		fs->root_sect = bpb32->root_clust / fs->cluster_size;
-		memcpy(fs->label, bpb32->label, sizeof bpb32->label);
+		fatfs->root_sect = bpb32->root_clust / fatfs->cluster_size;
+		memcpy(fatfs->label, bpb32->label, sizeof bpb32->label);
 		break;
 
 	default:
 		break;
 	}
 
-	endp = fs->label + sizeof fs->label - 2;
-	while(endp >= fs->label && isspace(*endp)) {
+	endp = fatfs->label + sizeof fatfs->label - 2;
+	while(endp >= fatfs->label && isspace(*endp)) {
 		*endp-- = 0;
 	}
 
-	printf("opened %s filesystem dev: %x, start: %lld\n", typestr[fs->type], fs->dev, start);
-	if(fs->label[0]) {
-		printf("  volume label: %s\n", fs->label);
+	/* open root directory */
+
+	if(!(fs = malloc(sizeof *fs))) {
+		panic("FAT: create failed to allocate memory for the filesystem structure\n");
 	}
-	printf("  size: %lu sectors (%llu bytes)\n", (unsigned long)fs->size,
-			(unsigned long long)fs->size * bpb->sect_bytes);
+	fs->type = FSTYPE_FAT;
+	fs->fsop = &fs_fat_ops;
+	fs->data = fatfs;
+	fs->root = 0;//fatroot;
+
+
+	printf("opened %s filesystem dev: %x, start: %lld\n", typestr[fatfs->type], fatfs->dev, start);
+	if(fatfs->label[0]) {
+		printf("  volume label: %s\n", fatfs->label);
+	}
+	printf("  size: %lu sectors (%llu bytes)\n", (unsigned long)fatfs->size,
+			(unsigned long long)fatfs->size * bpb->sect_bytes);
 	printf("  sector size: %d bytes\n", bpb->sect_bytes);
-	printf("  %lu clusters (%d sectors each)\n", (unsigned long)fs->num_clusters,
-			fs->cluster_size);
-	printf("  FAT starts at: %lu\n", (unsigned long)fs->fat_sect);
-	printf("  root dir at: %lu (%d sectors)\n", (unsigned long)fs->root_sect, fs->root_size);
+	printf("  %lu clusters (%d sectors each)\n", (unsigned long)fatfs->num_clusters,
+			fatfs->cluster_size);
+	printf("  FAT starts at: %lu\n", (unsigned long)fatfs->fat_sect);
+	printf("  root dir at: %lu (%d sectors)\n", (unsigned long)fatfs->root_sect, fatfs->root_size);
 	printf("  data sectors start at: %lu (%lu sectors, %lu clusters)\n\n",
-			(unsigned long)fs->first_data_sect, (unsigned long)fs->num_data_sect,
-			(unsigned long)fs->num_clusters);
+			(unsigned long)fatfs->first_data_sect, (unsigned long)fatfs->num_data_sect,
+			(unsigned long)fatfs->num_clusters);
 
 	return fs;
 }
 
-static void destroy(void *fsdata)
+static void destroy(struct filesys *fs)
 {
-	struct fatfs *fs = fsdata;
-
+	struct fatfs *fatfs = fs->data;
+	free(fatfs);
 	free(fs);
 }
 
-static struct fs_node *lookup(void *fsdata, const char *path)
+static struct fs_dir *opendir(struct filesys *fs, const char *path)
 {
 	return 0;	/* TODO */
+}
+
+static void closedir(struct filesys *fs, struct fs_dir *dir)
+{
 }
 
 
