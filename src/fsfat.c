@@ -25,6 +25,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "boot.h"
 #include "panic.h"
 
+#define DIRENT_UNUSED	0xe5
+
 enum { FAT12, FAT16, FAT32, EXFAT };
 static const char *typestr[] = { "fat12", "fat16", "fat32", "exfat" };
 
@@ -44,6 +46,8 @@ struct fatfs {
 	uint32_t num_data_sect;
 	uint32_t num_clusters;
 	char label[12];
+
+	struct fat_dirent *rootdir;
 };
 
 struct bparam {
@@ -109,6 +113,7 @@ static struct fs_dir *opendir(struct filesys *fs, const char *path);
 static void closedir(struct filesys *fs, struct fs_dir *dir);
 
 static int read_sector(int dev, uint64_t sidx, void *sect);
+static void dbg_printdir(struct fat_dirent *dir, int max_entries);
 
 static struct fs_operations fs_fat_ops = {
 	destroy,
@@ -120,9 +125,11 @@ static unsigned char sectbuf[512];
 
 struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 {
-	char *endp;
+	int i;
+	char *endp, *ptr;
 	struct filesys *fs;
 	struct fatfs *fatfs;
+	struct fat_dirent *rootdir;
 	struct bparam *bpb;
 	struct bparam_ext16 *bpb16;
 	struct bparam_ext32 *bpb32;
@@ -185,6 +192,15 @@ struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 	}
 
 	/* open root directory */
+	if(!(rootdir = malloc(fatfs->root_size * 512))) {
+		panic("FAT: failed to allocate memory for the root directory\n");
+	}
+	ptr = (char*)rootdir;
+
+	for(i=0; i<fatfs->root_size; i++) {
+		read_sector(dev, fatfs->start_sect + fatfs->root_sect + i, ptr);
+		ptr += 512;
+	}
 
 	if(!(fs = malloc(sizeof *fs))) {
 		panic("FAT: create failed to allocate memory for the filesystem structure\n");
@@ -209,6 +225,8 @@ struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 	printf("  data sectors start at: %lu (%lu sectors, %lu clusters)\n\n",
 			(unsigned long)fatfs->first_data_sect, (unsigned long)fatfs->num_data_sect,
 			(unsigned long)fatfs->num_clusters);
+
+	dbg_printdir(rootdir, fatfs->root_size * 512 / sizeof(struct fat_dirent));
 
 	return fs;
 }
@@ -241,4 +259,24 @@ static int read_sector(int dev, uint64_t sidx, void *sect)
 
 	printf("BUG: reading sectors from drives other than the boot drive not implemented yet\n");
 	return -1;
+}
+
+#define DENT_IS_NULL(dent)	(((unsigned char*)dent)[0] == 0)
+#define DENT_IS_UNUSED(dent)	(((unsigned char*)dent)[0] == DIRENT_UNUSED)
+
+static void dbg_printdir(struct fat_dirent *dir, int max_entries)
+{
+	char name[12];
+	struct fat_dirent *end = max_entries > 0 ? dir + max_entries : 0;
+
+	printf("DBG directory listing\n");
+
+	name[11] = 0;
+	while(!DENT_IS_NULL(dir) && (!end || dir < end)) {
+		if(!DENT_IS_UNUSED(dir)) {
+			memcpy(name, dir->name, 11);
+			printf("%s\n", name);
+		}
+		dir++;
+	}
 }
