@@ -28,6 +28,7 @@ enum {
 
 struct filesys;
 struct fs_dir;
+struct fs_dirent;
 
 struct fs_operations {
 	void (*destroy)(struct filesys *fs);
@@ -47,6 +48,11 @@ struct fs_dir {
 	struct filesys *fs, *mnt;
 	struct fs_dirent *ent;
 	int num_ent;
+	void *data;
+};
+
+struct fs_dirent {
+	char *name;
 	void *data;
 };
 

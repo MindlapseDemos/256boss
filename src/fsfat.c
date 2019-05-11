@@ -107,6 +107,17 @@ struct fat_dirent {
 	uint32_t size_bytes;
 } __attribute__((packed));
 
+struct fat_lfnent {
+	uint8_t seq;
+	uint16_t part1[5];
+	uint8_t attr;
+	uint8_t type;
+	uint8_t csum;
+	uint16_t part2[6];
+	uint16_t zero;
+	uint16_t part3[2];
+} __attribute__((packed));
+
 static void destroy(struct filesys *fs);
 
 static struct fs_dir *opendir(struct filesys *fs, const char *path);
@@ -261,21 +272,84 @@ static int read_sector(int dev, uint64_t sidx, void *sect)
 	return -1;
 }
 
-#define DENT_IS_NULL(dent)	(((unsigned char*)dent)[0] == 0)
-#define DENT_IS_UNUSED(dent)	(((unsigned char*)dent)[0] == DIRENT_UNUSED)
+#define DENT_IS_NULL(dent)	(((unsigned char*)(dent))[0] == 0)
+#define DENT_IS_UNUSED(dent)	(((unsigned char*)(dent))[0] == DIRENT_UNUSED)
+#define DENT_LFN_SEQ(dent)	(((unsigned char*)(dent))[0] & 0xf)
+#define DENT_LFN_LAST(dent)	((((unsigned char*)(dent))[0] & 0xf0) == 0x40)
+
+#define ATTR_RO		0x01
+#define ATTR_HIDDEN	0x02
+#define ATTR_SYSTEM	0x04
+#define ATTR_VOLID	0x08
+#define ATTR_DIR	0x10
+#define ATTR_ARCHIVE	0x20
+#define ATTR_LFN	0xf
+
+static int dent_filename(struct fat_dirent *dent, struct fat_dirent *prev, char *buf)
+{
+	int len = 0;
+	char *ptr = buf;
+	struct fat_lfnent *lfn = (struct fat_lfnent*)(dent - 1);
+
+	if(lfn > prev && lfn->attr == ATTR_LFN) {
+		/* found a long filename entry, use that */
+		do {
+			uint16_t ustr[14], *uptr = ustr;
+			memcpy(uptr, lfn->part1, sizeof lfn->part1), uptr += sizeof lfn->part1;
+			memcpy(uptr, lfn->part2, sizeof lfn->part2), uptr += sizeof lfn->part2;
+			memcpy(uptr, lfn->part3, sizeof lfn->part3);
+			ustr[13] = 0;
+
+			uptr = ustr;
+			while(*uptr) {
+				*ptr++ = *(char*)uptr++;
+				len++;
+			}
+			*ptr = 0;
+
+			if(uptr < ustr + 13 || (lfn->seq & 0xf0) == 0x40) break;
+			lfn -= 1;
+		} while(lfn > prev && lfn->attr == ATTR_LFN);
+
+	} else {
+		/* regular 8.3 filename */
+		memcpy(dent->name, buf, 8);
+		ptr = buf + 7;
+		while(ptr >= buf && isspace(*ptr)) {
+			*ptr-- = 0;
+		}
+		if(buf[0] == 0) return 0;
+
+		ptr++;
+		memcpy(ptr, dent->name + 8, 3);
+		ptr += 2;
+		while(ptr >= buf && isspace(*ptr)) {
+			*ptr-- = 0;
+		}
+		*++ptr = 0;
+
+		len = ptr - buf;
+	}
+	return len;
+}
 
 static void dbg_printdir(struct fat_dirent *dir, int max_entries)
 {
-	char name[12];
+	char name[256];
+	struct fat_dirent *prev = dir - 1;
 	struct fat_dirent *end = max_entries > 0 ? dir + max_entries : 0;
 
 	printf("DBG directory listing\n");
 
 	name[11] = 0;
 	while(!DENT_IS_NULL(dir) && (!end || dir < end)) {
-		if(!DENT_IS_UNUSED(dir)) {
-			memcpy(name, dir->name, 11);
-			printf("%s\n", name);
+		if(!DENT_IS_UNUSED(dir) && dir->attr != ATTR_VOLID && dir->attr != ATTR_LFN) {
+			if(dent_filename(dir, prev, name) > 0) {
+				printf("%s%c\n", name, dir->attr == ATTR_DIR ? '/' : ' ');
+			}
+		}
+		if(dir->attr != ATTR_LFN) {
+			prev = dir;
 		}
 		dir++;
 	}

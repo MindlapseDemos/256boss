@@ -26,7 +26,7 @@ ifneq ($(shell uname -m), i386)
 endif
 
 .PHONY: all
-all: disk.img floppy.img
+all: disk.img #floppy.img
 
 disk.img: 256boss.img blank.img
 	@echo
