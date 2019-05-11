@@ -124,7 +124,9 @@ static struct fs_dir *opendir(struct filesys *fs, const char *path);
 static void closedir(struct filesys *fs, struct fs_dir *dir);
 
 static int read_sector(int dev, uint64_t sidx, void *sect);
+static int dent_filename(struct fat_dirent *dent, struct fat_dirent *prev, char *buf);
 static void dbg_printdir(struct fat_dirent *dir, int max_entries);
+static void clean_trailws(char *s);
 
 static struct fs_operations fs_fat_ops = {
 	destroy,
@@ -291,12 +293,14 @@ static int dent_filename(struct fat_dirent *dent, struct fat_dirent *prev, char 
 	char *ptr = buf;
 	struct fat_lfnent *lfn = (struct fat_lfnent*)(dent - 1);
 
-	if(lfn > prev && lfn->attr == ATTR_LFN) {
+	if(lfn > (struct fat_lfnent*)prev && lfn->attr == ATTR_LFN) {
 		/* found a long filename entry, use that */
 		do {
 			uint16_t ustr[14], *uptr = ustr;
-			memcpy(uptr, lfn->part1, sizeof lfn->part1), uptr += sizeof lfn->part1;
-			memcpy(uptr, lfn->part2, sizeof lfn->part2), uptr += sizeof lfn->part2;
+			memcpy(uptr, lfn->part1, sizeof lfn->part1);
+			uptr += sizeof lfn->part1 / sizeof *lfn->part1;
+			memcpy(uptr, lfn->part2, sizeof lfn->part2);
+			uptr += sizeof lfn->part2 / sizeof *lfn->part2;
 			memcpy(uptr, lfn->part3, sizeof lfn->part3);
 			ustr[13] = 0;
 
@@ -309,26 +313,21 @@ static int dent_filename(struct fat_dirent *dent, struct fat_dirent *prev, char 
 
 			if(uptr < ustr + 13 || (lfn->seq & 0xf0) == 0x40) break;
 			lfn -= 1;
-		} while(lfn > prev && lfn->attr == ATTR_LFN);
+		} while(lfn > (struct fat_lfnent*)prev && lfn->attr == ATTR_LFN);
 
 	} else {
 		/* regular 8.3 filename */
-		memcpy(dent->name, buf, 8);
-		ptr = buf + 7;
-		while(ptr >= buf && isspace(*ptr)) {
-			*ptr-- = 0;
-		}
-		if(buf[0] == 0) return 0;
+		memcpy(buf, dent->name, 8);
+		buf[8] = 0;
+		clean_trailws(buf);
+		if(!buf[0]) return 0;
 
-		ptr++;
+		ptr = buf + strlen(buf);
 		memcpy(ptr, dent->name + 8, 3);
-		ptr += 2;
-		while(ptr >= buf && isspace(*ptr)) {
-			*ptr-- = 0;
-		}
-		*++ptr = 0;
+		ptr[3] = 0;
+		clean_trailws(ptr);
 
-		len = ptr - buf;
+		len = strlen(buf);
 	}
 	return len;
 }
@@ -353,4 +352,15 @@ static void dbg_printdir(struct fat_dirent *dir, int max_entries)
 		}
 		dir++;
 	}
+}
+
+static void clean_trailws(char *s)
+{
+	char *p;
+
+	if(!s || !*s) return;
+
+	p = s + strlen(s) - 1;
+	while(p >= s && isspace(*p)) p--;
+	p[1] = 0;
 }
