@@ -255,7 +255,7 @@ struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 		if(!(rootdir->ent = malloc(fatfs->root_size * 512))) {
 			panic("FAT: failed to allocate memory for the root directory\n");
 		}
-		ptr = (char*)rootdir;
+		ptr = (char*)rootdir->ent;
 
 		for(i=0; i<fatfs->root_size; i++) {
 			read_sector(dev, fatfs->start_sect + fatfs->root_sect + i, ptr);
