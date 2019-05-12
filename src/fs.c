@@ -24,7 +24,7 @@ static struct filesys *(*createfs[])(int, uint64_t, uint64_t) = {
 	fsfat_create
 };
 
-int fs_mount(int dev, uint64_t start, uint64_t size, struct fs_dir *parent)
+int fs_mount(int dev, uint64_t start, uint64_t size, struct fs_node *parent)
 {
 	int i;
 	struct filesys *fs;
@@ -36,9 +36,7 @@ int fs_mount(int dev, uint64_t start, uint64_t size, struct fs_dir *parent)
 
 	for(i=0; i<NUM_FSTYPES; i++) {
 		if((fs = createfs[i](dev, start, size))) {
-			if(parent) {
-				parent->mnt = fs;
-			} else {
+			if(!parent) {
 				rootfs = fs;
 			}
 			return 0;

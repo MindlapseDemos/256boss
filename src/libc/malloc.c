@@ -16,8 +16,10 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 #include "mem.h"
+#include "panic.h"
 
 struct mem_desc {
 	size_t size;
@@ -119,6 +121,10 @@ void free(void *p)
 	int pg0;
 	struct mem_desc *mem = PTR_DESC(p);
 
+	if(mem->magic != MAGIC) {
+		panic("free: corrupted magic!\n");
+	}
+
 	if(mem->size > MAX_POOL_SIZE) {
 		/*printf("foo_free(%p): %ld bytes. block too large for pools, returning to system\n",
 				(void*)p, (unsigned long)mem->size);*/
@@ -130,6 +136,38 @@ void free(void *p)
 	/*printf("foo_free(%p): block of %ld bytes and ", (void*)p, (unsigned long)mem->size);*/
 	add_to_pool(mem);
 }
+
+
+void *calloc(size_t num, size_t size)
+{
+	void *ptr = malloc(num * size);
+	if(ptr) {
+		memset(ptr, 0, num * size);
+	}
+	return ptr;
+}
+
+void *realloc(void *ptr, size_t size)
+{
+	struct mem_desc *mem;
+	void *newp;
+
+	if(!ptr) {
+		return malloc(size);
+	}
+
+	mem = PTR_DESC(ptr);
+	if(mem->size >= size) {
+		return ptr;	/* TODO: shrink */
+	}
+
+	if(!(newp = malloc(size))) {
+		return 0;
+	}
+	free(ptr);
+	return newp;
+}
+
 
 static int add_to_pool(struct mem_desc *mem)
 {
