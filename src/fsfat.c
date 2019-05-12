@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <string.h>
 #include <inttypes.h>
 #include <ctype.h>
+#include <assert.h>
 #include "fs.h"
 #include "bootdev.h"
 #include "boot.h"
@@ -141,6 +142,8 @@ struct fat_lfnent {
 
 static void destroy(struct filesys *fs);
 
+static struct fs_node *lookup(struct filesys *fs, const char *path);
+
 static struct fs_node *opendir(struct filesys *fs, const char *path);
 static void closedir(struct filesys *fs, struct fs_node *dir);
 
@@ -184,6 +187,8 @@ struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 	bpb16 = (struct bparam_ext16*)(sectbuf + sizeof *bpb);
 	bpb32 = (struct bparam_ext32*)(sectbuf + sizeof *bpb);
 
+	assert(bpb->sect_bytes == 512);
+
 	if(bpb->jmp[0] != 0xeb || bpb->jmp[2] != 0x90) {
 		return 0;
 	}
@@ -199,7 +204,7 @@ struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 	fatfs->fat_size = bpb->fat_size ? bpb->fat_size : bpb32->fat_size;
 	fatfs->fat_sect = bpb->reserved_sect;
 	fatfs->root_sect = fatfs->fat_sect + fatfs->fat_size * bpb->num_fats;
-	fatfs->root_size = (bpb->num_dirent * sizeof(struct fat_dirent) + bpb->sect_bytes - 1) / bpb->sect_bytes;
+	fatfs->root_size = (bpb->num_dirent * sizeof(struct fat_dirent) + 511) / 512;
 	fatfs->first_data_sect = bpb->reserved_sect + bpb->num_fats * fatfs->fat_size + fatfs->root_size;
 	fatfs->num_data_sect = fatfs->size - (bpb->reserved_sect + bpb->num_fats * fatfs->fat_size + fatfs->root_size);
 	fatfs->num_clusters = fatfs->num_data_sect / fatfs->cluster_size;
@@ -222,6 +227,7 @@ struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 	case FAT32:
 	case EXFAT:
 		fatfs->root_sect = bpb32->root_clust / fatfs->cluster_size;
+		fatfs->root_size = 0;
 		memcpy(fatfs->label, bpb32->label, sizeof bpb32->label);
 		break;
 
@@ -288,7 +294,26 @@ struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 			(unsigned long)fatfs->first_data_sect, (unsigned long)fatfs->num_data_sect,
 			(unsigned long)fatfs->num_clusters);
 
-	dbg_printdir(rootdir->ent, fatfs->root_size * 512 / sizeof(struct fat_dirent));
+	/* test */
+	printf("DBG root directory listing\n");
+	dbg_printdir(rootdir->ent, rootdir->max_nent);
+
+	{
+		struct fs_node *node = lookup(fs, "/acrylic");
+		if(!node) {
+			printf("failed to find /acrylic\n");
+		} else {
+			if(node->type != FSNODE_DIR) {
+				printf("/acrylic isn't a directory\n");
+			} else {
+				struct fat_dir *dir = node->data;
+
+				printf("/acrylic listing:\n");
+				dbg_printdir(dir->ent, dir->max_nent);
+				closedir(fs, node);
+			}
+		}
+	}
 
 	return fs;
 }
@@ -395,7 +420,7 @@ static struct fat_dir *load_dir(struct fatfs *fs, struct fat_dirent *dent)
 
 	do {
 		int prevsz = bufsz;
-		bufsz += fs->cluster_size;
+		bufsz += fs->cluster_size * 512;
 		if(!(buf = realloc(buf, bufsz))) {
 			panic("FAT: failed to allocate cluster buffer (%d bytes)\n", bufsz);
 		}
@@ -440,7 +465,7 @@ static int read_cluster(struct fatfs *fatfs, uint32_t addr, void *clust)
 {
 	char *ptr = clust;
 	int i;
-	uint64_t saddr = (uint64_t)addr * fatfs->cluster_size + fatfs->start_sect;
+	uint64_t saddr = (uint64_t)(addr - 2) * fatfs->cluster_size + fatfs->first_data_sect + fatfs->start_sect;
 
 	for(i=0; i<fatfs->cluster_size; i++) {
 		if(read_sector(fatfs->dev, saddr + i, ptr) == -1) {
@@ -486,10 +511,13 @@ static int dent_filename(struct fat_dirent *dent, struct fat_dirent *prev, char 
 		clean_trailws(buf);
 		if(!buf[0]) return 0;
 
-		ptr = buf + strlen(buf);
-		memcpy(ptr, dent->name + 8, 3);
-		ptr[3] = 0;
-		clean_trailws(ptr);
+		if(dent->name[8] && dent->name[8] != ' ') {
+			ptr = buf + strlen(buf);
+			*ptr++ = '.';
+			memcpy(ptr, dent->name + 8, 3);
+			ptr[3] = 0;
+			clean_trailws(ptr);
+		}
 
 		len = strlen(buf);
 	}
@@ -590,9 +618,6 @@ static void dbg_printdir(struct fat_dirent *dir, int max_entries)
 	struct fat_dirent *prev = dir - 1;
 	struct fat_dirent *end = max_entries > 0 ? dir + max_entries : 0;
 
-	printf("DBG directory listing\n");
-
-	name[11] = 0;
 	while(!DENT_IS_NULL(dir) && (!end || dir < end)) {
 		if(!DENT_IS_UNUSED(dir) && dir->attr != ATTR_VOLID && dir->attr != ATTR_LFN) {
 			if(dent_filename(dir, prev, name) > 0) {
