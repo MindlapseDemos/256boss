@@ -933,6 +933,10 @@ int_op:	int $0
 
 	# restore 32bit interrupt descriptor table
 	lidt (saved_idtr)
+
+	# restore PIC configuration
+	call init_pic
+
 	sti
 	popal
 	pop %ebp

@@ -104,6 +104,8 @@ void kmain(void)
 	}
 }
 
+void init_pic(int offset);
+
 void test(void)
 {
 	int i, npart, num_mounts = 0;
