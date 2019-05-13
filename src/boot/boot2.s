@@ -882,9 +882,9 @@ int_op:	int $0
 	mov %eax, saved_eax
 	mov %ds, saved_ds
 	mov %es, saved_es
-	#pushfw
-	#popw %ax
-	#mov %ax, saved_flags
+	pushfw
+	popw %ax
+	mov %ax, saved_flags
 
 	# re-enable protection
 	mov %cr0, %eax
@@ -909,9 +909,12 @@ int_op:	int $0
 	pushw %ax
 	mov saved_es, %ax
 	pushw %ax
+	# grab the flags and replace the carry bit from the saved flags
 	pushfw
-	#mov saved_flags, %ax
-	#pushw %ax
+	popw %ax
+	and $0xfffe, %ax
+	or saved_flags, %ax
+	pushw %ax
 	mov saved_eax, %eax
 	pushal
 	mov saved_esp, %esp
