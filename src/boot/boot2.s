@@ -919,6 +919,13 @@ int_op:	int $0
 	pushal
 	mov saved_esp, %esp
 
+	# restore 32bit interrupt descriptor table
+	lidt (saved_idtr)
+
+	# restore PIC configuration
+	call init_pic
+
+	# restore IRQ masks
 	movzbl saved_pic1_mask, %eax
 	push %eax
 	pushl $0
@@ -931,11 +938,6 @@ int_op:	int $0
 	call set_pic_mask
 	add $8, %esp
 
-	# restore 32bit interrupt descriptor table
-	lidt (saved_idtr)
-
-	# restore PIC configuration
-	call init_pic
 
 	sti
 	popal
