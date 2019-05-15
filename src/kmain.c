@@ -32,6 +32,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "floppy.h"
 #include "part.h"
 #include "fs.h"
+#include "kbregs.h"
 
 
 void test(void);
@@ -63,7 +64,7 @@ void kmain(void)
 	for(;;) {
 		int c;
 
-		//halt_cpu();
+		halt_cpu();
 		while((c = kb_getkey()) >= 0) {
 			if(isprint(c)) {
 				printf("key: %d '%c'\n", c, (char)c);
@@ -94,6 +95,10 @@ void kmain(void)
 				outb(0, 0x21);
 				outb(0, 0xa1);
 				enable_intr();
+				break;
+
+			case KB_F5:
+				init_pci();
 				break;
 			}
 

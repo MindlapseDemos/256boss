@@ -938,6 +938,14 @@ int_op:	int $0
 	call set_pic_mask
 	add $8, %esp
 
+	# keyboard voodoo: with some BIOS implementations, after returning from
+	# int13, there's (I guess) leftover data in the keyboard port and we
+	# can't receive any more keyboard interrupts afterwards. Reading from
+	# the keyboard data port (60h) once, seems to resolve this. And it's
+	# cheap enough, so why not... I give up.
+	push %eax
+	in $0x60, %al
+	pop %eax
 
 	sti
 	popal
