@@ -35,8 +35,8 @@ struct fs_dirent;
 struct fs_operations {
 	void (*destroy)(struct filesys *fs);
 
-	struct fs_node *(*opendir)(struct filesys *fs, const char *path);
-	void (*closedir)(struct filesys *fs, struct fs_node *dir);
+	struct fs_node *(*open)(struct filesys *fs, const char *path);
+	void (*close)(struct filesys *fs, struct fs_node *node);
 };
 
 struct filesys {
@@ -46,6 +46,7 @@ struct filesys {
 };
 
 struct fs_node {
+	struct filesys *fs;
 	int type;
 	void *data;
 };
@@ -56,6 +57,8 @@ struct fs_dirent {
 };
 
 struct filesys *rootfs;
+
+int fs_free_node(struct fs_node *node);
 
 int fs_mount(int dev, uint64_t start, uint64_t size, struct fs_node *parent);
 

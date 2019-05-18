@@ -67,11 +67,6 @@ struct fatfs {
 	struct fat_dir *rootdir;
 };
 
-struct fat_dir {
-	struct fat_dirent *ent;
-	int max_nent;
-};
-
 struct bparam {
 	uint8_t jmp[3];
 	unsigned char fmtid[8];
@@ -140,15 +135,32 @@ struct fat_lfnent {
 	uint16_t part3[2];
 } __attribute__((packed));
 
+
+struct fat_dir {
+	struct fat_dirent *ent;
+	int max_nent;
+};
+
+struct fat_file {
+	struct fat_dirent ent;
+	uint64_t cur_offs;
+	uint32_t cur_clust;
+	char sect[512];
+};
+
+
 static void destroy(struct filesys *fs);
 
 static struct fs_node *lookup(struct filesys *fs, const char *path);
 
-static struct fs_node *opendir(struct filesys *fs, const char *path);
-static void closedir(struct filesys *fs, struct fs_node *dir);
+static struct fs_node *open(struct filesys *fs, const char *path);
+static void close(struct filesys *fs, struct fs_node *node);
 
 static struct fat_dir *load_dir(struct fatfs *fs, struct fat_dirent *dent);
 static void free_dir(struct fat_dir *dir);
+
+static struct fat_file *init_file(struct fatfs *fatfs, struct fat_dirent *dent);
+static void free_file(struct fat_file *file);
 
 static int read_sector(int dev, uint64_t sidx, void *sect);
 static int read_cluster(struct fatfs *fatfs, uint32_t addr, void *clust);
@@ -163,7 +175,7 @@ static void clean_trailws(char *s);
 
 static struct fs_operations fs_fat_ops = {
 	destroy,
-	opendir, closedir
+	open, close
 };
 
 static unsigned char sectbuf[512];
@@ -283,34 +295,22 @@ struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 	if(fatfs->label[0]) {
 		printf("  volume label: %s\n", fatfs->label);
 	}
-	printf("  size: %lu sectors (%llu bytes)\n", (unsigned long)fatfs->size,
-			(unsigned long long)fatfs->size * bpb->sect_bytes);
-	printf("  sector size: %d bytes\n", bpb->sect_bytes);
-	printf("  %lu clusters (%d sectors each)\n", (unsigned long)fatfs->num_clusters,
-			fatfs->cluster_size);
-	printf("  FAT starts at: %lu (%d sectors)\n", (unsigned long)fatfs->fat_sect, fatfs->fat_size);
-	printf("  root dir at: %lu (%d sectors)\n", (unsigned long)fatfs->root_sect, fatfs->root_size);
-	printf("  data sectors start at: %lu (%lu sectors, %lu clusters)\n\n",
-			(unsigned long)fatfs->first_data_sect, (unsigned long)fatfs->num_data_sect,
-			(unsigned long)fatfs->num_clusters);
+
+	printf("root directory:\n");
+	dbg_printdir(fatfs->rootdir->ent, fatfs->rootdir->max_nent);
+	putchar('\n');
 
 	/* test */
-	printf("DBG root directory listing\n");
-	dbg_printdir(rootdir->ent, rootdir->max_nent);
-
 	{
-		struct fs_node *node = lookup(fs, "/acrylic");
+		struct fs_node *node = lookup(fs, "/readme.md");
 		if(!node) {
-			printf("failed to find /acrylic\n");
+			printf("failed to find /readme.md\n");
 		} else {
-			if(node->type != FSNODE_DIR) {
-				printf("/acrylic isn't a directory\n");
+			if(node->type != FSNODE_FILE) {
+				printf("/readme.md isn't a file\n");
 			} else {
-				struct fat_dir *dir = node->data;
-
-				printf("/acrylic listing:\n");
-				dbg_printdir(dir->ent, dir->max_nent);
-				closedir(fs, node);
+				struct fat_file *file = node->data;
+				printf("found /readme.md, first cluster: %ld\n", (unsigned long)file->ent.first_cluster_low);
 			}
 		}
 	}
@@ -332,7 +332,7 @@ static struct fs_node *lookup(struct filesys *fs, const char *path)
 	const char *ptr;
 	struct fatfs *fatfs = fs->data;
 	struct fat_dir *dir, *newdir;
-	struct fat_dirent *dent, last_dent;
+	struct fat_dirent *dent;
 	struct fs_node *node;
 
 	if(path[0] == '/') {
@@ -362,7 +362,6 @@ static struct fs_node *lookup(struct filesys *fs, const char *path)
 			return 0;
 		}
 
-		last_dent = *dent;
 		newdir = dent->attr == ATTR_DIR ? load_dir(fatfs, dent) : 0;
 		if(dir != fatfs->rootdir) {
 			free_dir(dir);
@@ -374,34 +373,41 @@ static struct fs_node *lookup(struct filesys *fs, const char *path)
 	if(!(node = malloc(sizeof *node))) {
 		panic("FAT: lookup failed to allocate fs_node structure\n");
 	}
+	node->fs = fs;
 	if(dir) {
 		node->type = FSNODE_DIR;
 		node->data = dir;
 	} else {
 		node->type = FSNODE_FILE;
-		if(!(node->data = malloc(sizeof last_dent))) {
+		if(!(node->data = init_file(fatfs, dent))) {
 			panic("FAT: failed to allocate file entry structure\n");
 		}
-		*(struct fat_dirent*)node->data = last_dent;
 	}
 
 	return node;
 }
 
-static struct fs_node *opendir(struct filesys *fs, const char *path)
+static struct fs_node *open(struct filesys *fs, const char *path)
 {
-	struct fs_node *node;
-
-	if(!(node = lookup(fs, path))) {
-		return 0;
-	}
-	/* TODO */
-	return node;
+	return lookup(fs, path);
 }
 
-static void closedir(struct filesys *fs, struct fs_node *dir)
+static void close(struct filesys *fs, struct fs_node *node)
 {
-	/* TODO */
+	switch(node->type) {
+	case FSNODE_FILE:
+		free_file(node->data);
+		break;
+
+	case FSNODE_DIR:
+		free_dir(node->data);
+		break;
+
+	default:
+		panic("FAT: close node is not a file nor a dir\n");
+	}
+
+	free(node);
 }
 
 static struct fat_dir *load_dir(struct fatfs *fs, struct fat_dirent *dent)
@@ -445,6 +451,26 @@ static void free_dir(struct fat_dir *dir)
 	if(dir) {
 		free(dir->ent);
 		free(dir);
+	}
+}
+
+static struct fat_file *init_file(struct fatfs *fatfs, struct fat_dirent *dent)
+{
+	struct fat_file *file;
+
+	if(!(file = calloc(1, sizeof *file))) {
+		panic("FAT: failed to allocate file structure\n");
+	}
+	file->ent = *dent;
+	file->cur_offs = 0;
+	file->cur_clust = 0;
+	return file;
+}
+
+static void free_file(struct fat_file *file)
+{
+	if(file) {
+		free(file);
 	}
 }
 
