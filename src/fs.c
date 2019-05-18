@@ -24,6 +24,13 @@ static struct filesys *(*createfs[])(int, uint64_t, uint64_t) = {
 	fsfat_create
 };
 
+int fs_free_node(struct fs_node *node)
+{
+	struct filesys *fs = node->fs;
+	fs->fsop->close(fs, node);
+	return 0;
+}
+
 int fs_mount(int dev, uint64_t start, uint64_t size, struct fs_node *parent)
 {
 	int i;
@@ -45,4 +52,59 @@ int fs_mount(int dev, uint64_t start, uint64_t size, struct fs_node *parent)
 
 	printf("failed to mount filesystem dev: %d, start %llu\n", dev, (unsigned long long)start);
 	return -1;
+}
+
+
+struct fs_node *fs_open(const char *path)
+{
+	struct filesys *fs;
+	struct fs_node *node;
+
+	if(!path || !*path) {
+		return 0;
+	}
+
+	if(*path == '/') {
+		fs = rootfs;
+	} else {
+		if(!cwdnode) return 0;
+		fs = cwdnode->fs;
+	}
+
+	if(!(node = fs->fsop->open(fs, path))) {
+		return 0;
+	}
+	return node;
+}
+
+int fs_close(struct fs_node *node)
+{
+	struct filesys *fs = node->fs;
+	fs->fsop->close(fs, node);
+	return 0;
+}
+
+int fs_seek(struct fs_node *node, int offs, int whence)
+{
+	return -1;	/* TODO */
+}
+
+int fs_read(struct fs_node *node, void *buf, int sz)
+{
+	return -1;	/* TODO */
+}
+
+int fs_write(struct fs_node *node, void *buf, int sz)
+{
+	return -1;	/* TODO */
+}
+
+int fs_rewinddir(struct fs_node *node)
+{
+	return -1;	/* TODO */
+}
+
+struct fs_dirent *fs_readdir(struct fs_node *node)
+{
+	return 0;	/* TODO */
 }

@@ -57,9 +57,23 @@ struct fs_dirent {
 };
 
 struct filesys *rootfs;
+struct fs_node *cwdnode;	/* current working directory node */
 
 int fs_free_node(struct fs_node *node);
 
 int fs_mount(int dev, uint64_t start, uint64_t size, struct fs_node *parent);
+
+struct fs_node *fs_open(const char *path);
+int fs_close(struct fs_node *node);
+
+int fs_seek(struct fs_node *node, int offs, int whence);
+int fs_read(struct fs_node *node, void *buf, int sz);
+int fs_write(struct fs_node *node, void *buf, int sz);
+
+struct fs_node *fs_opendir(const char *path);
+int fs_closedir(struct fs_node *node);
+
+int fs_rewinddir(struct fs_node *node);
+struct fs_dirent *fs_readdir(struct fs_node *node);
 
 #endif	/* FS_H_ */
