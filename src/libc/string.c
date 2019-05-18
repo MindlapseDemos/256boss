@@ -1,6 +1,6 @@
 /*
-pcboot - bootable PC demo/game kernel
-Copyright (C) 2018  John Tsiombikas <nuclear@member.fsf.org>
+256boss - bootable launcher for 256byte intros
+Copyright (C) 2018-2019  John Tsiombikas <nuclear@member.fsf.org>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -16,41 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include <string.h>
-
-/*
-void memset(void *s, int c, size_t n)
-{
-	char *ptr = s;
-	while(n--) {
-		*ptr++ = c;
-	}
-}
-*/
-
-/* Does the same thing as memset only with 16bit values.
- * n in this case is the number of values, not the number of bytes.
- */
-/*
-void memset16(void *s, int c, size_t n)
-{
-	int16_t *ptr = s;
-	while(n--) {
-		*ptr++ = c;
-	}
-}
-*/
-/*
-void *memcpy(void *dest, const void *src, size_t n)
-{
-	char *dptr = dest;
-	const char *sptr = src;
-
-	while(n--) {
-		*dptr++ = *sptr++;
-	}
-	return dest;
-}
-*/
+#include <ctype.h>
 
 void *memmove(void *dest, const void *src, size_t n)
 {
@@ -136,4 +102,13 @@ int strcmp(const char *s1, const char *s2)
 		s2++;
 	}
 	return *s1 - *s2;
+}
+
+int strcasecmp(const char *s1, const char *s2)
+{
+	while(*s1 && tolower(*s1) == tolower(*s2)) {
+		s1++;
+		s2++;
+	}
+	return tolower(*s1) - tolower(*s2);
 }

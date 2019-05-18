@@ -310,7 +310,24 @@ struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 				printf("/readme.md isn't a file\n");
 			} else {
 				struct fat_file *file = node->data;
-				printf("found /readme.md, first cluster: %ld\n", (unsigned long)file->ent.first_cluster_low);
+				int32_t clustid = file->ent.first_cluster_low;
+				uint32_t bytes_left = file->ent.size_bytes;
+				char clustbuf[2048];
+
+				printf("contents of /readme.md (%lu bytes)\n", (unsigned long)bytes_left);
+
+				do {
+					char *ptr = clustbuf;
+					uint32_t sz = bytes_left > 2048 ? 2048 : bytes_left;
+					bytes_left -= sz;
+
+					read_cluster(fatfs, clustid, clustbuf);
+
+					for(i=0; i<sz; i++) {
+						putchar(*ptr++);
+					}
+
+				} while((clustid = next_cluster(fatfs, clustid)) >= 0);
 			}
 		}
 	}
@@ -562,7 +579,7 @@ static struct fat_dirent *find_entry(struct fat_dir *dir, const char *name)
 
 		if(!DENT_IS_UNUSED(dent) && dent->attr != ATTR_VOLID && dent->attr != ATTR_LFN) {
 			if(dent_filename(dent, prev, entname) > 0) {
-				if(strcmp(entname, name) == 0) {
+				if(strcasecmp(entname, name) == 0) {
 					return dent;
 				}
 			}
