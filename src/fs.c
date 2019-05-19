@@ -24,13 +24,6 @@ static struct filesys *(*createfs[])(int, uint64_t, uint64_t) = {
 	fsfat_create
 };
 
-int fs_free_node(struct fs_node *node)
-{
-	struct filesys *fs = node->fs;
-	fs->fsop->close(fs, node);
-	return 0;
-}
-
 int fs_mount(int dev, uint64_t start, uint64_t size, struct fs_node *parent)
 {
 	int i;
@@ -79,32 +72,57 @@ struct fs_node *fs_open(const char *path)
 
 int fs_close(struct fs_node *node)
 {
-	struct filesys *fs = node->fs;
-	fs->fsop->close(fs, node);
+	struct fs_operations *fsop = node->fs->fsop;
+	fsop->close(node);
 	return 0;
 }
 
 int fs_seek(struct fs_node *node, int offs, int whence)
 {
-	return -1;	/* TODO */
+	struct fs_operations *fsop = node->fs->fsop;
+
+	if(node->type != FSNODE_FILE) {
+		return -1;
+	}
+	return fsop->seek(node, offs, whence);
 }
 
 int fs_read(struct fs_node *node, void *buf, int sz)
 {
-	return -1;	/* TODO */
+	struct fs_operations *fsop = node->fs->fsop;
+
+	if(node->type != FSNODE_FILE) {
+		return -1;
+	}
+	return fsop->read(node, buf, sz);
 }
 
 int fs_write(struct fs_node *node, void *buf, int sz)
 {
-	return -1;	/* TODO */
+	struct fs_operations *fsop = node->fs->fsop;
+
+	if(node->type != FSNODE_FILE) {
+		return -1;
+	}
+	return fsop->write(node, buf, sz);
 }
 
 int fs_rewinddir(struct fs_node *node)
 {
-	return -1;	/* TODO */
+	struct fs_operations *fsop = node->fs->fsop;
+
+	if(node->type != FSNODE_DIR) {
+		return -1;
+	}
+	return fsop->rewinddir(node);
 }
 
 struct fs_dirent *fs_readdir(struct fs_node *node)
 {
-	return 0;	/* TODO */
+	struct fs_operations *fsop = node->fs->fsop;
+
+	if(node->type != FSNODE_DIR) {
+		return 0;
+	}
+	return fsop->readdir(node);
 }

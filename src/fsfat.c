@@ -65,6 +65,8 @@ struct fatfs {
 
 	void *fat;
 	struct fat_dir *rootdir;
+	unsigned int clust_mask;
+	int clust_shift;
 };
 
 struct bparam {
@@ -138,14 +140,18 @@ struct fat_lfnent {
 
 struct fat_dir {
 	struct fat_dirent *ent;
+	int cur_ent;
 	int max_nent;
 };
 
 struct fat_file {
 	struct fat_dirent ent;
-	uint64_t cur_offs;
-	uint32_t cur_clust;
-	char sect[512];
+	int32_t first_clust;
+	int64_t cur_pos;
+	int32_t cur_clust;	/* cluster number corresponding to cur_offs */
+
+	char *clustbuf;
+	int buf_valid;
 };
 
 
@@ -154,7 +160,12 @@ static void destroy(struct filesys *fs);
 static struct fs_node *lookup(struct filesys *fs, const char *path);
 
 static struct fs_node *open(struct filesys *fs, const char *path);
-static void close(struct filesys *fs, struct fs_node *node);
+static void close(struct fs_node *node);
+static int seek(struct fs_node *node, int offs, int whence);
+static int read(struct fs_node *node, void *buf, int sz);
+static int write(struct fs_node *node, void *buf, int sz);
+static int rewinddir(struct fs_node *node);
+static struct fs_dirent *readdir(struct fs_node *node);
 
 static struct fat_dir *load_dir(struct fatfs *fs, struct fat_dirent *dent);
 static void free_dir(struct fat_dir *dir);
@@ -169,13 +180,18 @@ static struct fat_dirent *find_entry(struct fat_dir *dir, const char *name);
 
 static uint32_t read_fat(struct fatfs *fatfs, uint32_t addr);
 static int32_t next_cluster(struct fatfs *fatfs, int32_t addr);
+static int32_t find_cluster(struct fatfs *fatfs, int count, int32_t clust);
 
 static void dbg_printdir(struct fat_dirent *dir, int max_entries);
 static void clean_trailws(char *s);
 
 static struct fs_operations fs_fat_ops = {
 	destroy,
-	open, close
+	open, close,
+
+	seek, read, write,
+
+	rewinddir, readdir
 };
 
 static unsigned char sectbuf[512];
@@ -281,6 +297,13 @@ struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 		}
 	}
 	fatfs->rootdir = rootdir;
+
+	/* assume cluster_size is a power of two */
+	fatfs->clust_mask = fatfs->cluster_size - 1;
+	fatfs->clust_shift = 0;
+	while((1 << fatfs->clust_shift) < fatfs->cluster_size) {
+		fatfs->clust_shift++;
+	}
 
 	/* fill generic fs structure */
 	if(!(fs = malloc(sizeof *fs))) {
@@ -409,7 +432,7 @@ static struct fs_node *open(struct filesys *fs, const char *path)
 	return lookup(fs, path);
 }
 
-static void close(struct filesys *fs, struct fs_node *node)
+static void close(struct fs_node *node)
 {
 	switch(node->type) {
 	case FSNODE_FILE:
@@ -425,6 +448,94 @@ static void close(struct filesys *fs, struct fs_node *node)
 	}
 
 	free(node);
+}
+
+static int seek(struct fs_node *node, int offs, int whence)
+{
+	struct fatfs *fatfs;
+	struct fat_file *file;
+	int64_t new_pos;
+	unsigned int cur_clust_idx, new_clust_idx;
+
+	if(node->type != FSNODE_FILE) {
+		return -1;
+	}
+
+	fatfs = node->fs->data;
+	file = node->data;
+
+	switch(whence) {
+	case FSSEEK_SET:
+		new_pos = offs;
+		break;
+
+	case FSSEEK_CUR:
+		new_pos = file->cur_pos + offs;
+		break;
+
+	case FSSEEK_END:
+		new_pos = file->ent.size_bytes + offs;
+		break;
+
+	default:
+		return -1;
+	}
+
+	if(new_pos < 0) new_pos = 0;
+
+	cur_clust_idx = file->cur_pos >> fatfs->clust_shift;
+	new_clust_idx = new_pos >> fatfs->clust_shift;
+	/* if the new position does not fall in the same cluster as the previous one
+	 * re-calculate cur_clust
+	 */
+	if(new_clust_idx != cur_clust_idx) {
+		if(new_clust_idx < cur_clust_idx) {
+			file->cur_clust = find_cluster(fatfs, new_clust_idx, file->first_clust);
+		} else {
+			file->cur_clust = find_cluster(fatfs, new_clust_idx - cur_clust_idx, file->cur_clust);
+		}
+		file->buf_valid = 0;
+	}
+	file->cur_pos = new_pos;
+	return 0;
+}
+/* TODO: initialize all the new fields I added to fat_file in init_file */
+
+static int read(struct fs_node *node, void *buf, int sz)
+{
+}
+
+static int write(struct fs_node *node, void *buf, int sz)
+{
+}
+
+static int rewinddir(struct fs_node *node)
+{
+	struct fat_dir *dir;
+
+	if(node->type != FSNODE_DIR) {
+		return -1;
+	}
+
+	dir = node->data;
+	dir->cur_ent = 0;
+	return 0;
+}
+
+static struct fs_dirent *readdir(struct fs_node *node)
+{
+	struct fat_dir *dir;
+
+	if(node->type != FSNODE_DIR) {
+		return 0;
+	}
+
+	dir = node->data;
+	if(dir->cur_ent >= dir->max_nent) {
+		return 0;
+	}
+
+	return dir->ent + dir->cur_ent++;
 }
 
 static struct fat_dir *load_dir(struct fatfs *fs, struct fat_dirent *dent)
@@ -460,6 +571,7 @@ static struct fat_dir *load_dir(struct fatfs *fs, struct fat_dirent *dent)
 	}
 	dir->ent = (struct fat_dirent*)buf;
 	dir->max_nent = bufsz / sizeof *dir->ent;
+	dir->cur_ent = 0;
 	return dir;
 }
 
@@ -654,6 +766,11 @@ static int32_t next_cluster(struct fatfs *fatfs, int32_t addr)
 	return fatval;
 }
 
+static int32_t find_cluster(struct fatfs *fatfs, int count, int32_t clust)
+{
+	while(count-- > 0 && (clust = next_cluster(fatfs, clust)) >= 0);
+	return clust;
+}
 
 static void dbg_printdir(struct fat_dirent *dir, int max_entries)
 {
