@@ -171,6 +171,7 @@ static int rewinddir(struct fs_node *node);
 static struct fs_dirent *readdir(struct fs_node *node);
 
 static struct fat_dir *load_dir(struct fatfs *fs, struct fat_dirent *dent);
+static void parse_dir_entries(struct fat_dir *dir);
 static void free_dir(struct fat_dir *dir);
 
 static struct fat_file *init_file(struct fatfs *fatfs, struct fat_dirent *dent);
@@ -299,6 +300,7 @@ struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 			ptr += 512;
 		}
 	}
+	parse_dir_entries(rootdir);
 	fatfs->rootdir = rootdir;
 
 	/* assume cluster_size is a power of two */
@@ -544,14 +546,10 @@ static struct fs_dirent *readdir(struct fs_node *node)
 
 static struct fat_dir *load_dir(struct fatfs *fs, struct fat_dirent *dent)
 {
-	int i;
 	int32_t addr;
 	struct fat_dir *dir;
-	struct fat_dirent *prev_dent;
-	struct fs_dirent *fsentptr;
 	char *buf = 0;
 	int bufsz = 0;
-	char entname[MAX_NAME];
 
 	if(dent->attr != ATTR_DIR) return 0;
 
@@ -581,13 +579,24 @@ static struct fat_dir *load_dir(struct fatfs *fs, struct fat_dirent *dent)
 	dir->max_nent = bufsz / sizeof *dir->ent;
 	dir->cur_ent = 0;
 
+	parse_dir_entries(dir);
+	return dir;
+}
+
+static void parse_dir_entries(struct fat_dir *dir)
+{
+	int i;
+	struct fat_dirent *dent, *prev_dent;
+	struct fs_dirent *eptr;
+	char entname[MAX_NAME];
+
 	/* create an fs_dirent array with one element for each actual entry
 	 * (disregarding volume labels, and LFN entries).
 	 */
 	if(!(dir->fsent = malloc(dir->max_nent * sizeof *dir->fsent))) {
 		panic("FAT: failed to allocate dirent array\n");
 	}
-	fsentptr = dir->fsent;
+	eptr = dir->fsent;
 	dent = dir->ent;
 	prev_dent = dent - 1;
 
@@ -596,12 +605,12 @@ static struct fat_dir *load_dir(struct fatfs *fs, struct fat_dirent *dent)
 
 		if(!DENT_IS_UNUSED(dent) && dent->attr != ATTR_VOLID && dent->attr != ATTR_LFN) {
 			if(dent_filename(dent, prev_dent, entname) > 0) {
-				if(!(fsentptr->name = malloc(strlen(entname) + 1))) {
+				if(!(eptr->name = malloc(strlen(entname) + 1))) {
 					panic("FAT: failed to allocate dirent name\n");
 				}
-				strcpy(fsentptr->name, entname);
-				fsentptr->data = dent;
-				fsentptr++;
+				strcpy(eptr->name, entname);
+				eptr->data = dent;
+				eptr++;
 			}
 		}
 		if(dent->attr != ATTR_LFN) {
@@ -609,9 +618,8 @@ static struct fat_dir *load_dir(struct fatfs *fs, struct fat_dirent *dent)
 		}
 		dent++;
 	}
-	dir->fsent_size = fsentptr - dir->fsent;
-
-	return dir;
+	dir->fsent_size = eptr - dir->fsent;
+	dir->cur_ent = 0;
 }
 
 static void free_dir(struct fat_dir *dir)
