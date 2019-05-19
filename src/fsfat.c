@@ -140,8 +140,11 @@ struct fat_lfnent {
 
 struct fat_dir {
 	struct fat_dirent *ent;
-	int cur_ent;
 	int max_nent;
+
+	struct fs_dirent *fsent;
+	int fsent_size;
+	int cur_ent;
 };
 
 struct fat_file {
@@ -176,7 +179,7 @@ static void free_file(struct fat_file *file);
 static int read_sector(int dev, uint64_t sidx, void *sect);
 static int read_cluster(struct fatfs *fatfs, uint32_t addr, void *clust);
 static int dent_filename(struct fat_dirent *dent, struct fat_dirent *prev, char *buf);
-static struct fat_dirent *find_entry(struct fat_dir *dir, const char *name);
+static struct fs_dirent *find_entry(struct fat_dir *dir, const char *name);
 
 static uint32_t read_fat(struct fatfs *fatfs, uint32_t addr);
 static int32_t next_cluster(struct fatfs *fatfs, int32_t addr);
@@ -372,7 +375,8 @@ static struct fs_node *lookup(struct filesys *fs, const char *path)
 	const char *ptr;
 	struct fatfs *fatfs = fs->data;
 	struct fat_dir *dir, *newdir;
-	struct fat_dirent *dent;
+	struct fs_dirent *dent;
+	struct fat_dirent *fatdent;
 	struct fs_node *node;
 
 	if(path[0] == '/') {
@@ -401,8 +405,9 @@ static struct fs_node *lookup(struct filesys *fs, const char *path)
 		if(!(dent = find_entry(dir, name))) {
 			return 0;
 		}
+		fatdent = dent->data;
 
-		newdir = dent->attr == ATTR_DIR ? load_dir(fatfs, dent) : 0;
+		newdir = fatdent->attr == ATTR_DIR ? load_dir(fatfs, fatdent) : 0;
 		if(dir != fatfs->rootdir) {
 			free_dir(dir);
 		}
@@ -419,7 +424,7 @@ static struct fs_node *lookup(struct filesys *fs, const char *path)
 		node->data = dir;
 	} else {
 		node->type = FSNODE_FILE;
-		if(!(node->data = init_file(fatfs, dent))) {
+		if(!(node->data = init_file(fatfs, fatdent))) {
 			panic("FAT: failed to allocate file entry structure\n");
 		}
 	}
@@ -499,7 +504,6 @@ static int seek(struct fs_node *node, int offs, int whence)
 	file->cur_pos = new_pos;
 	return 0;
 }
-/* TODO: initialize all the new fields I added to fat_file in init_file */
 
 static int read(struct fs_node *node, void *buf, int sz)
 {
@@ -535,15 +539,19 @@ static struct fs_dirent *readdir(struct fs_node *node)
 		return 0;
 	}
 
-	return dir->ent + dir->cur_ent++;
+	return dir->fsent + dir->cur_ent++;
 }
 
 static struct fat_dir *load_dir(struct fatfs *fs, struct fat_dirent *dent)
 {
+	int i;
 	int32_t addr;
 	struct fat_dir *dir;
+	struct fat_dirent *prev_dent;
+	struct fs_dirent *fsentptr;
 	char *buf = 0;
 	int bufsz = 0;
+	char entname[MAX_NAME];
 
 	if(dent->attr != ATTR_DIR) return 0;
 
@@ -572,6 +580,37 @@ static struct fat_dir *load_dir(struct fatfs *fs, struct fat_dirent *dent)
 	dir->ent = (struct fat_dirent*)buf;
 	dir->max_nent = bufsz / sizeof *dir->ent;
 	dir->cur_ent = 0;
+
+	/* create an fs_dirent array with one element for each actual entry
+	 * (disregarding volume labels, and LFN entries).
+	 */
+	if(!(dir->fsent = malloc(dir->max_nent * sizeof *dir->fsent))) {
+		panic("FAT: failed to allocate dirent array\n");
+	}
+	fsentptr = dir->fsent;
+	dent = dir->ent;
+	prev_dent = dent - 1;
+
+	for(i=0; i<dir->max_nent; i++) {
+		if(DENT_IS_NULL(dent)) break;
+
+		if(!DENT_IS_UNUSED(dent) && dent->attr != ATTR_VOLID && dent->attr != ATTR_LFN) {
+			if(dent_filename(dent, prev_dent, entname) > 0) {
+				if(!(fsentptr->name = malloc(strlen(entname) + 1))) {
+					panic("FAT: failed to allocate dirent name\n");
+				}
+				strcpy(fsentptr->name, entname);
+				fsentptr->data = dent;
+				fsentptr++;
+			}
+		}
+		if(dent->attr != ATTR_LFN) {
+			prev_dent = dent;
+		}
+		dent++;
+	}
+	dir->fsent_size = fsentptr - dir->fsent;
+
 	return dir;
 }
 
@@ -579,6 +618,7 @@ static void free_dir(struct fat_dir *dir)
 {
 	if(dir) {
 		free(dir->ent);
+		free(dir->fsent);
 		free(dir);
 	}
 }
@@ -590,15 +630,19 @@ static struct fat_file *init_file(struct fatfs *fatfs, struct fat_dirent *dent)
 	if(!(file = calloc(1, sizeof *file))) {
 		panic("FAT: failed to allocate file structure\n");
 	}
+	if(!(file->clustbuf = malloc(fatfs->cluster_size * 512))) {
+		panic("FAT: failed to allocate file cluster buffer\n");
+	}
 	file->ent = *dent;
-	file->cur_offs = 0;
-	file->cur_clust = 0;
+	file->first_clust = dent->first_cluster_low | ((int32_t)dent->first_cluster_high << 16);
+	file->cur_clust = file->first_clust;
 	return file;
 }
 
 static void free_file(struct fat_file *file)
 {
 	if(file) {
+		free(file->clustbuf);
 		free(file);
 	}
 }
@@ -679,29 +723,17 @@ static int dent_filename(struct fat_dirent *dent, struct fat_dirent *prev, char 
 	return len;
 }
 
-static struct fat_dirent *find_entry(struct fat_dir *dir, const char *name)
+static struct fs_dirent *find_entry(struct fat_dir *dir, const char *name)
 {
 	int i;
-	struct fat_dirent *dent = dir->ent;
-	struct fat_dirent *prev = dent - 1;
-	char entname[MAX_NAME];
+	struct fs_dirent *dent = dir->fsent;
 
-	for(i=0; i<dir->max_nent; i++) {
-		if(DENT_IS_NULL(dent)) break;
-
-		if(!DENT_IS_UNUSED(dent) && dent->attr != ATTR_VOLID && dent->attr != ATTR_LFN) {
-			if(dent_filename(dent, prev, entname) > 0) {
-				if(strcasecmp(entname, name) == 0) {
-					return dent;
-				}
-			}
-		}
-		if(dent->attr != ATTR_LFN) {
-			prev = dent;
+	for(i=0; i<dir->fsent_size; i++) {
+		if(strcasecmp(dent->name, name) == 0) {
+			return dent;
 		}
 		dent++;
 	}
-
 	return 0;
 }
 

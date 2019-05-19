@@ -112,3 +112,10 @@ int strcasecmp(const char *s1, const char *s2)
 	}
 	return tolower(*s1) - tolower(*s2);
 }
+
+char *strcpy(char *dest, const char *src)
+{
+	char *dptr = dest;
+	while(*src) *dptr++ = *src++;
+	return dest;
+}
