@@ -70,6 +70,8 @@ struct fs_node *cwdnode;	/* current working directory node */
 
 int fs_mount(int dev, uint64_t start, uint64_t size, struct fs_node *parent);
 
+int fs_chdir(const char *path);
+
 struct fs_node *fs_open(const char *path);
 int fs_close(struct fs_node *node);
 

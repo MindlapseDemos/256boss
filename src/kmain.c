@@ -33,9 +33,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "part.h"
 #include "fs.h"
 #include "kbregs.h"
+#include "sh.h"
 
 
-void test(void);
+static void mount_boot_fs(void);
+
 
 void kmain(void)
 {
@@ -59,24 +61,15 @@ void kmain(void)
 
 	bdev_init();
 
-	printf("256boss initialized\n");
+	mount_boot_fs();
+	sh_init();
 
 	for(;;) {
 		int c;
 
 		halt_cpu();
 		while((c = kb_getkey()) >= 0) {
-			if(isprint(c)) {
-				printf("key: %d '%c'\n", c, (char)c);
-			} else {
-				printf("key: %d\n", c);
-			}
-
 			switch(c) {
-			case ' ':
-				test();
-				break;
-
 			case KB_F4:
 				printf("turning floppy motors off\n");
 				floppy_motors_off();
@@ -100,6 +93,9 @@ void kmain(void)
 			case KB_F5:
 				init_pci();
 				break;
+
+			default:
+				sh_input(c);
 			}
 
 		}
@@ -109,9 +105,7 @@ void kmain(void)
 	}
 }
 
-void init_pic(int offset);
-
-void test(void)
+static void mount_boot_fs(void)
 {
 	int i, npart, num_mounts = 0;
 	struct partition ptab[32];

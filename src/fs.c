@@ -48,6 +48,27 @@ int fs_mount(int dev, uint64_t start, uint64_t size, struct fs_node *parent)
 }
 
 
+int fs_chdir(const char *path)
+{
+	struct fs_node *node;
+
+	if(!path || !*path) {
+		return -1;
+	}
+
+	if(!(node = fs_open(path))) {
+		return -1;
+	}
+	if(node->type != FSNODE_DIR) {
+		fs_close(node);
+		return -1;
+	}
+
+	fs_close(cwdnode);
+	cwdnode = node;
+	return 0;
+}
+
 struct fs_node *fs_open(const char *path)
 {
 	struct filesys *fs;
