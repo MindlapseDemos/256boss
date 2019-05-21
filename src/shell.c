@@ -16,11 +16,17 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <ctype.h>
 #include "shell.h"
 #include "keyb.h"
 #include "fs.h"
 #include "contty.h"
+#include "panic.h"
+
+static int cmd_clear();
+static int cmd_help();
 
 #define INBUF_SIZE		256
 
@@ -38,12 +44,69 @@ void sh_shutdown(void)
 {
 }
 
-static char **tokenize(const char *str, int *argc_ptr)
+#define MAX_ARGV	128
+
+static char **tokenize(char *str, int *num_args)
 {
+	static char *argv[MAX_ARGV];
+	int argc = 0;
+	char *ptr, *end;
+
+	ptr = str;
+	for(;;) {
+		while(*ptr && isspace(*ptr)) ptr++;
+		if(!*ptr) break;
+
+		end = ptr + 1;
+		while(*end && !isspace(*end)) end++;
+
+		if(argc < MAX_ARGV) {
+			argv[argc++] = ptr;
+		}
+
+		if(!*end) break;
+		*end = 0;
+		ptr = end + 1;
+	}
+
+	*num_args = argc;
+	return argv;
 }
+
+static struct {
+	const char *name;
+	int (*func)(int, char**);
+} commands[] = {
+	{"clear", cmd_clear},
+	{"help", cmd_help},
+	{0, 0}
+};
 
 int sh_eval(const char *str)
 {
+	char *cmdbuf;
+	char **argv;
+	int i, argc;
+
+	if(!(cmdbuf = malloc(strlen(str) + 1))) {
+		panic("sh_eval: failed to allocate command-line buffer\n");
+	}
+	strcpy(cmdbuf, str);
+
+	if(!(argv = tokenize(cmdbuf, &argc))) {
+		free(cmdbuf);
+		return -1;
+	}
+
+	for(i=0; commands[i].name; i++) {
+		if(strcmp(commands[i].name, argv[0]) == 0) {
+			int res = commands[i].func(argc, argv);
+			free(cmdbuf);
+			return res;
+		}
+	}
+	free(cmdbuf);
+	return -1;
 }
 
 void sh_input(int c)
@@ -116,4 +179,21 @@ void sh_input(int c)
 			con_putchar(c);
 		}
 	}
+}
+
+static int cmd_clear()
+{
+	con_clear();
+	return 0;
+}
+
+static int cmd_help()
+{
+	int i;
+
+	printf("Available commands:\n");
+	for(i=0; commands[i].name; i++) {
+		printf("%s\n", commands[i].name);
+	}
+	return 0;
 }

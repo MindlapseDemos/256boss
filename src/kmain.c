@@ -33,7 +33,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "part.h"
 #include "fs.h"
 #include "kbregs.h"
-#include "sh.h"
+#include "shell.h"
 
 
 static void mount_boot_fs(void);
