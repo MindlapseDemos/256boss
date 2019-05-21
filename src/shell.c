@@ -60,7 +60,7 @@ static char **tokenize(char *str, int *num_args)
 		end = ptr + 1;
 		while(*end && !isspace(*end)) end++;
 
-		if(argc < MAX_ARGV) {
+		if(argc < MAX_ARGV - 1) {
 			argv[argc++] = ptr;
 		}
 
@@ -69,6 +69,7 @@ static char **tokenize(char *str, int *num_args)
 		ptr = end + 1;
 	}
 
+	argv[argc] = 0;
 	*num_args = argc;
 	return argv;
 }
@@ -116,9 +117,9 @@ void sh_input(int c)
 	case '\r':
 		inbuf[input_len] = 0;
 		input_len = 0;
+		con_putchar(c);
 		sh_eval(inbuf);
 		/* TODO append to history */
-		con_putchar(c);
 		break;
 
 	case '\t':

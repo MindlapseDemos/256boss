@@ -93,6 +93,7 @@ void *malloc(size_t sz)
 				add_to_pool(other);
 			}
 
+			mem->magic = MAGIC;
 			return DESC_PTR(mem);
 		}
 
