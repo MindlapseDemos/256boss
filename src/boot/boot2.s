@@ -458,7 +458,8 @@ scrollup:
 
 clearscr:
 	mov $0xb8000, %edi
-	xor %eax, %eax
+	# clear with white-on-black spaces
+	mov $0x07200720, %eax
 	mov $1000, %ecx
 	addr32 rep stosl
 	ret

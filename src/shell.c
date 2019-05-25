@@ -19,14 +19,16 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <assert.h>
 #include "shell.h"
 #include "keyb.h"
 #include "fs.h"
 #include "contty.h"
 #include "panic.h"
 
-static int cmd_clear();
-static int cmd_help();
+static void print_prompt(void);
+static int cmd_clear(int argc, char **argv);
+static int cmd_help(int argc, char **argv);
 
 #define INBUF_SIZE		256
 
@@ -37,6 +39,7 @@ static int cursor;
 int sh_init(void)
 {
 	printf("256boss debug shell\n");
+	print_prompt();
 	return 0;
 }
 
@@ -106,6 +109,10 @@ int sh_eval(const char *str)
 			return res;
 		}
 	}
+
+	if(argv[0]) {
+		printf("unknown command: %s\n", argv[0]);
+	}
 	free(cmdbuf);
 	return -1;
 }
@@ -116,9 +123,10 @@ void sh_input(int c)
 	case '\n':
 	case '\r':
 		inbuf[input_len] = 0;
-		input_len = 0;
-		con_putchar(c);
+		input_len = cursor = 0;
+		con_putchar('\n');
 		sh_eval(inbuf);
+		print_prompt();
 		/* TODO append to history */
 		break;
 
@@ -135,8 +143,8 @@ void sh_input(int c)
 				memmove(inbuf + cursor - 1, inbuf + cursor, input_len - cursor);
 				cursor--;
 			}
+			con_putchar(c);
 		}
-		con_putchar(c);
 		break;
 
 	case KB_UP:
@@ -180,15 +188,22 @@ void sh_input(int c)
 			con_putchar(c);
 		}
 	}
+
+	assert(cursor <= input_len);
 }
 
-static int cmd_clear()
+static void print_prompt(void)
+{
+	printf("> ");
+}
+
+static int cmd_clear(int argc, char **argv)
 {
 	con_clear();
 	return 0;
 }
 
-static int cmd_help()
+static int cmd_help(int argc, char **argv)
 {
 	int i;
 

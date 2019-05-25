@@ -324,11 +324,12 @@ struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 		printf("  volume label: %s\n", fatfs->label);
 	}
 
+	/* test */
+	/*
 	printf("root directory:\n");
 	dbg_printdir(fatfs->rootdir->ent, fatfs->rootdir->max_nent);
 	putchar('\n');
 
-	/* test */
 	{
 		struct fs_node *node = lookup(fs, "/readme.md");
 		if(!node) {
@@ -359,6 +360,7 @@ struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 			}
 		}
 	}
+	*/
 
 	return fs;
 }

@@ -37,6 +37,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 static void mount_boot_fs(void);
+static void print_intr_state(void);
 
 
 void kmain(void)
@@ -76,10 +77,7 @@ void kmain(void)
 				break;
 
 			case KB_F1:
-				printf("interrupt state\n");
-				printf(" IF: %s\n", get_intr_flag() ? "enabled" : "disabled");
-				printf(" PIC1 mask: %x\n", get_pic_mask(0));
-				printf(" PIC2 mask: %x\n", get_pic_mask(1));
+				print_intr_state();
 				break;
 
 			case KB_F2:
@@ -121,4 +119,12 @@ static void mount_boot_fs(void)
 			num_mounts++;
 		}
 	}
+}
+
+static void print_intr_state(void)
+{
+	printf("interrupt state\n");
+	printf(" IF: %s\n", get_intr_flag() ? "enabled" : "disabled");
+	printf(" PIC1 mask: %x\n", get_pic_mask(0));
+	printf(" PIC2 mask: %x\n", get_pic_mask(1));
 }

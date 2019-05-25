@@ -18,9 +18,15 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef CONTTY_H_
 #define CONTTY_H_
 
+enum {
+	CON_CURSOR_LINE,
+	CON_CURSOR_BLOCK
+};
+
 int con_init(void);
 void con_show_cursor(int show);
 void con_cursor(int x, int y);
+void con_curattr(int shape, int blink);
 void con_fgcolor(int c);
 void con_bgcolor(int c);
 void con_clear(void);

@@ -47,11 +47,12 @@ static void crtc_cursor(int x, int y);
 static void crtc_setstart(int y);
 static inline unsigned char crtc_read(int reg);
 static inline void crtc_write(int reg, unsigned char val);
-static inline void crtc_write_bits(int reg, unsigned char val, unsigned char mask);
 
 extern int cursor_x, cursor_y;
 static unsigned char txattr = 0x07;
 static int start_line;
+static unsigned char cy0, cy1;
+static int curvis;
 
 int con_init(void)
 {
@@ -60,15 +61,23 @@ int con_init(void)
 #endif
 
 #ifdef CON_TEXTMODE
+	cy0 = crtc_read(CRTC_REG_CURSTART);
+	curvis = cy0 & 0x20 ? 1 : 0;
+	cy0 &= 0x1f;
+	cy1 = crtc_read(CRTC_REG_CUREND) & 0x1f;
+
+	printf("BEFORE curloc: %x %x\n", (unsigned int)crtc_read(CRTC_REG_CURLOC_H),
+			(unsigned int)crtc_read(CRTC_REG_CURLOC_L));
+	printf("BEFORE curstart: %x\n", (unsigned int)crtc_read(CRTC_REG_CURSTART));
+	printf("BEFORE curend: %x\n", (unsigned int)crtc_read(CRTC_REG_CUREND));
+
 	con_show_cursor(1);
 	crtc_setstart(0);
 	crtc_cursor(cursor_x, cursor_y);
-	/*
-	printf("curloc: %x %x\n", (unsigned int)crtc_read(CRTC_REG_CURLOC_H),
+	printf("AFTER curloc: %x %x\n", (unsigned int)crtc_read(CRTC_REG_CURLOC_H),
 			(unsigned int)crtc_read(CRTC_REG_CURLOC_L));
-	printf("curstart: %x\n", (unsigned int)crtc_read(CRTC_REG_CURSTART));
-	printf("curend: %x\n", (unsigned int)crtc_read(CRTC_REG_CUREND));
-	*/
+	printf("AFTER curstart: %x\n", (unsigned int)crtc_read(CRTC_REG_CURSTART));
+	printf("AFTER curend: %x\n", (unsigned int)crtc_read(CRTC_REG_CUREND));
 #endif
 
 	return 0;
@@ -77,9 +86,12 @@ int con_init(void)
 void con_show_cursor(int show)
 {
 #ifdef CON_TEXTMODE
-	unsigned char val = show ? 0 : 0x20;
-
-	crtc_write_bits(CRTC_REG_CURSTART, val, 0x20);
+	unsigned char val = cy0 & 0x1f;
+	if(!show) {
+		val |= 0x20;
+	}
+	crtc_write(CRTC_REG_CURSTART, val);
+	curvis = show;
 #endif
 }
 
@@ -89,6 +101,23 @@ void con_cursor(int x, int y)
 	cursor_x = x;
 	cursor_y = y;
 	crtc_cursor(x, y);
+#endif
+}
+
+void con_curattr(int shape, int blink)
+{
+#ifdef CON_TEXTMODE
+	unsigned char start;
+	cy0 = (shape == CON_CURSOR_LINE) ? 0xd : 0;
+	cy1 = 0xe;
+
+	start = cy0;
+	if(curvis) {
+		start |= 0x20;
+	}
+
+	crtc_write(CRTC_REG_CURSTART, start);
+	crtc_write(CRTC_REG_CUREND, cy0);
 #endif
 }
 
@@ -105,7 +134,7 @@ void con_bgcolor(int c)
 void con_clear(void)
 {
 #ifdef CON_TEXTMODE
-	memset(TEXT_ADDR, 0, NCOLS * NROWS * 2);
+	memset16(TEXT_ADDR, VMEM_CHAR(' ', txattr), NCOLS * NROWS);
 
 	start_line = 0;
 	crtc_setstart(0);
@@ -143,6 +172,12 @@ void con_putchar(int c)
 		crtc_cursor(cursor_x, cursor_y);
 		break;
 
+	case '\b':
+		if(cursor_x > 0) cursor_x--;
+		con_putchar_scr(cursor_x, cursor_y, ' ');
+		crtc_cursor(cursor_x, cursor_y);
+		break;
+
 	default:
 		con_putchar_scr(cursor_x, cursor_y, c);
 
@@ -161,12 +196,15 @@ void con_putchar(int c)
 
 void con_putchar_scr(int x, int y, int c)
 {
+#ifdef CON_TEXTMODE
 	uint16_t *ptr = (uint16_t*)TEXT_ADDR;
 	ptr[(y + start_line) * NCOLS + x] = VMEM_CHAR(c, txattr);
+#endif
 }
 
 void con_printf(int x, int y, const char *fmt, ...)
 {
+#ifdef CON_TEXTMODE
 	va_list ap;
 	char buf[81];
 	char *ptr = buf;
@@ -178,6 +216,7 @@ void con_printf(int x, int y, const char *fmt, ...)
 	while(*ptr && x < 80) {
 		con_putchar_scr(x++, y, *ptr++);
 	}
+#endif
 }
 
 static void scroll(void)
@@ -225,14 +264,5 @@ static inline unsigned char crtc_read(int reg)
 static inline void crtc_write(int reg, unsigned char val)
 {
 	outb(reg, CRTC_ADDR);
-	outb(val, CRTC_DATA);
-}
-
-static inline void crtc_write_bits(int reg, unsigned char val, unsigned char mask)
-{
-	unsigned char prev;
-	outb(reg, CRTC_ADDR);
-	prev = inb(CRTC_DATA);
-	val = (prev & ~mask) | (val & mask);
 	outb(val, CRTC_DATA);
 }
