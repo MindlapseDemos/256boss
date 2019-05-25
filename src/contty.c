@@ -66,18 +66,9 @@ int con_init(void)
 	cy0 &= 0x1f;
 	cy1 = crtc_read(CRTC_REG_CUREND) & 0x1f;
 
-	printf("BEFORE curloc: %x %x\n", (unsigned int)crtc_read(CRTC_REG_CURLOC_H),
-			(unsigned int)crtc_read(CRTC_REG_CURLOC_L));
-	printf("BEFORE curstart: %x\n", (unsigned int)crtc_read(CRTC_REG_CURSTART));
-	printf("BEFORE curend: %x\n", (unsigned int)crtc_read(CRTC_REG_CUREND));
-
 	con_show_cursor(1);
 	crtc_setstart(0);
 	crtc_cursor(cursor_x, cursor_y);
-	printf("AFTER curloc: %x %x\n", (unsigned int)crtc_read(CRTC_REG_CURLOC_H),
-			(unsigned int)crtc_read(CRTC_REG_CURLOC_L));
-	printf("AFTER curstart: %x\n", (unsigned int)crtc_read(CRTC_REG_CURSTART));
-	printf("AFTER curend: %x\n", (unsigned int)crtc_read(CRTC_REG_CUREND));
 #endif
 
 	return 0;
