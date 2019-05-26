@@ -21,6 +21,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <stdlib.h>
 #include <stdarg.h>
 
+typedef struct FILE FILE;
+
 int putchar(int c);
 int puts(const char *s);
 
@@ -36,5 +38,16 @@ int vsnprintf(char *buf, size_t sz, const char *fmt, va_list ap);
 /* printf to the serial port */
 int ser_printf(const char *fmt, ...);
 int ser_vprintf(const char *fmt, va_list ap);
+
+/* FILE I/O */
+FILE *fopen(const char *path, const char *mode);
+int fclose(FILE *fp);
+
+int fseek(FILE *fp, long offset, int from);
+void rewind(FILE *fp);
+long ftell(FILE *fp);
+
+size_t fread(void *buf, size_t size, size_t count, FILE *fp);
+size_t fwrite(const void *ptr, size_t size, size_t count, FILE *fp);
 
 #endif	/* STDIO_H_ */

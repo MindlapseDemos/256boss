@@ -30,6 +30,10 @@ static void print_prompt(void);
 static int cmd_clear(int argc, char **argv);
 static int cmd_help(int argc, char **argv);
 
+static int cmd_chdir(int argc, char **argv);
+static int cmd_list(int argc, char **argv);
+static int cmd_cat(int argc, char **argv);
+
 #define INBUF_SIZE		256
 
 static char inbuf[INBUF_SIZE];
@@ -81,6 +85,9 @@ static struct {
 	const char *name;
 	int (*func)(int, char**);
 } commands[] = {
+	{"cd", cmd_chdir},
+	{"ls", cmd_list},
+	{"cat", cmd_cat},
 	{"clear", cmd_clear},
 	{"help", cmd_help},
 	{0, 0}
@@ -210,6 +217,102 @@ static int cmd_help(int argc, char **argv)
 	printf("Available commands:\n");
 	for(i=0; commands[i].name; i++) {
 		printf("%s\n", commands[i].name);
+	}
+	return 0;
+}
+
+/* filesystem commands */
+static int cmd_chdir(int argc, char **argv)
+{
+	if(argc != 2) {
+		printf("usage: %d <directory>\n", argv[0]);
+		return -1;
+	}
+	return chdir(argv[1]);
+}
+
+static void list_dir(DIR *dir)
+{
+	while((dent = readdir(dir))) {
+		printf("%s\n", dent->d_name);
+	}
+}
+
+static int cmd_list(int argc, char **argv)
+{
+	int i, num_listed = 0, opt_long = 0;
+	DIR *dir;
+	struct dirent *dent;
+
+	for(i=1; i<argc; i++) {
+		if(argv[i][0] == '-') {
+			if(argv[i][2] == 0) {
+				switch(argv[i][1]) {
+				case 'l':
+					opt_long = 1;
+					break;
+
+				default:
+					print_ls_usage(argv[0]);
+					return -1;
+				}
+			} else {
+				print_ls_usage(argv[0]);
+				return -1;
+			}
+		} else {
+			if(!(dir = opendir(argv[i]))) {
+				printf("failed to open directory: %s\n", argv[i]);
+				return -1;
+			}
+			list_dir(dir);
+			closedir(dir);
+			num_listed++;
+		}
+	}
+
+	if(!num_listed) {
+		dir = opendir(".");
+		list_dir(dir);
+		closedir(dir);
+		return -1;
+	}
+	return 0;
+}
+
+static int cmd_cat(int argc, char **argv)
+{
+	int i, c, num_files = 0;
+	FILE *fp;
+	char buf[512];
+	size_t sz;
+
+	for(i=1; i<argc; i++) {
+		if(!(fp = fopen(argv[i], "rb"))) {
+			printf("failed to open file: %s\n", argv[i]);
+			return -1;
+		}
+		num_files++;
+
+		while((sz = fread(buf, 1, sizeof buf, fp)) > 0) {
+			char *ptr = buf;
+			while(sz-- > 0) {
+				putchar(*ptr++);
+			}
+		}
+	}
+
+	if(!num_files) {
+		for(;;) {
+			kb_wait();
+			while((c = kb_getkey()) >= 0) {
+				if(c == 'd' && kb_isdown(KB_CTRL)) {
+					goto eof;
+				}
+				putchar(c);
+			}
+		}
+eof:
 	}
 	return 0;
 }
