@@ -389,8 +389,7 @@ static struct fs_node *lookup(struct filesys *fs, const char *path)
 		dir = fatfs->rootdir;
 		while(*path == '/') path++;
 	} else {
-		/* TODO */
-		panic("FAT: not implemented current directories and relative paths yet\n");
+		dir = cwdnode->data;
 	}
 
 	while(*path) {

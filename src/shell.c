@@ -281,7 +281,10 @@ static int cmd_list(int argc, char **argv)
 	}
 
 	if(!num_listed) {
-		dir = opendir(".");
+		if(!(dir = opendir("."))) {
+			printf("failed to open current directory\n");
+			return -1;
+		}
 		list_dir(dir);
 		closedir(dir);
 		return -1;
