@@ -1,6 +1,6 @@
 /*
 pcboot - bootable PC demo/game kernel
-Copyright (C) 2018  John Tsiombikas <nuclear@member.fsf.org>
+Copyright (C) 2018-2019  John Tsiombikas <nuclear@member.fsf.org>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -15,25 +15,10 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#ifndef ERRNO_H_
-#define ERRNO_H_
+#include "unistd.h"
+#include "fs.h"
 
-#define EFOO			1
-#define EAGAIN			2
-#define EINVAL			3
-#define ECHILD			4
-#define EBUSY			5
-#define ENOMEM			6
-#define EIO				7
-#define ENOENT			8
-#define ENAMETOOLONG	9
-#define ENOSPC			10
-#define EPERM			11
-#define ENOTDIR			12
-#define EISDIR			13
-
-#define EBUG			127	/* for missing features and known bugs */
-
-int errno;
-
-#endif	/* ERRNO_H_ */
+int chdir(const char *path)
+{
+	return fs_chdir(path);
+}

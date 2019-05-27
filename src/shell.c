@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
+#include <dirent.h>
 #include "shell.h"
 #include "keyb.h"
 #include "fs.h"
@@ -233,6 +234,7 @@ static int cmd_chdir(int argc, char **argv)
 
 static void list_dir(DIR *dir)
 {
+	struct dirent *dent;
 	while((dent = readdir(dir))) {
 		printf("%s\n", dent->d_name);
 	}
@@ -242,7 +244,6 @@ static int cmd_list(int argc, char **argv)
 {
 	int i, num_listed = 0, opt_long = 0;
 	DIR *dir;
-	struct dirent *dent;
 
 	for(i=1; i<argc; i++) {
 		if(argv[i][0] == '-') {
@@ -312,7 +313,7 @@ static int cmd_cat(int argc, char **argv)
 				putchar(c);
 			}
 		}
-eof:
 	}
+eof:
 	return 0;
 }

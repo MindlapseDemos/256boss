@@ -76,6 +76,7 @@ struct fs_node *fs_open(const char *path);
 int fs_close(struct fs_node *node);
 
 int fs_seek(struct fs_node *node, int offs, int whence);
+long fs_tell(struct fs_node *node);
 int fs_read(struct fs_node *node, void *buf, int sz);
 int fs_write(struct fs_node *node, void *buf, int sz);
 

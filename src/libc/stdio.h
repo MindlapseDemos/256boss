@@ -23,6 +23,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 typedef struct FILE FILE;
 
+enum { SEEK_SET, SEEK_CUR, SEEK_END };
+
 int putchar(int c);
 int puts(const char *s);
 
@@ -48,6 +50,6 @@ void rewind(FILE *fp);
 long ftell(FILE *fp);
 
 size_t fread(void *buf, size_t size, size_t count, FILE *fp);
-size_t fwrite(const void *ptr, size_t size, size_t count, FILE *fp);
+size_t fwrite(const void *buf, size_t size, size_t count, FILE *fp);
 
 #endif	/* STDIO_H_ */
