@@ -41,6 +41,7 @@ struct fs_operations {
 	void (*close)(struct fs_node *node);
 
 	int (*seek)(struct fs_node *node, int offs, int whence);
+	long (*tell)(struct fs_node *node);
 	int (*read)(struct fs_node *node, void *buf, int sz);
 	int (*write)(struct fs_node *node, void *buf, int sz);
 

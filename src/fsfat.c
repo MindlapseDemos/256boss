@@ -165,6 +165,7 @@ static struct fs_node *lookup(struct filesys *fs, const char *path);
 static struct fs_node *open(struct filesys *fs, const char *path);
 static void close(struct fs_node *node);
 static int seek(struct fs_node *node, int offs, int whence);
+static long tell(struct fs_node *node);
 static int read(struct fs_node *node, void *buf, int sz);
 static int write(struct fs_node *node, void *buf, int sz);
 static int rewinddir(struct fs_node *node);
@@ -193,7 +194,8 @@ static struct fs_operations fs_fat_ops = {
 	destroy,
 	open, close,
 
-	seek, read, write,
+	seek, tell,
+	read, write,
 
 	rewinddir, readdir
 };
@@ -507,6 +509,18 @@ static int seek(struct fs_node *node, int offs, int whence)
 	}
 	file->cur_pos = new_pos;
 	return 0;
+}
+
+static long tell(struct fs_node *node)
+{
+	struct fat_file *file;
+
+	if(!node || node->type != FSNODE_FILE) {
+		return -1;
+	}
+
+	file = node->data;
+	return file->cur_pos;
 }
 
 static int read(struct fs_node *node, void *buf, int sz)

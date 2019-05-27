@@ -108,6 +108,16 @@ int fs_seek(struct fs_node *node, int offs, int whence)
 	return fsop->seek(node, offs, whence);
 }
 
+long fs_tell(struct fs_node *node)
+{
+	struct fs_operations *fsop = node->fs->fsop;
+
+	if(node->type != FSNODE_FILE) {
+		return -1;
+	}
+	return fsop->tell(node);
+}
+
 int fs_read(struct fs_node *node, void *buf, int sz)
 {
 	struct fs_operations *fsop = node->fs->fsop;

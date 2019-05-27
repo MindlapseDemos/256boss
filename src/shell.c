@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
+#include <unistd.h>
 #include <dirent.h>
 #include "shell.h"
 #include "keyb.h"
@@ -238,6 +239,13 @@ static void list_dir(DIR *dir)
 	while((dent = readdir(dir))) {
 		printf("%s\n", dent->d_name);
 	}
+}
+
+static void print_ls_usage(const char *argv0)
+{
+	printf("Usage: %s [options] dir1 dir2 ... dirN\n", argv0);
+	printf("Options:\n");
+	printf(" -l: long listing\n");
 }
 
 static int cmd_list(int argc, char **argv)
