@@ -552,7 +552,7 @@ static struct fs_dirent *readdir(struct fs_node *node)
 	}
 
 	dir = node->data;
-	if(dir->cur_ent >= dir->max_nent) {
+	if(dir->cur_ent >= dir->fsent_size) {
 		return 0;
 	}
 
@@ -639,8 +639,13 @@ static void parse_dir_entries(struct fat_dir *dir)
 
 static void free_dir(struct fat_dir *dir)
 {
+	int i;
+
 	if(dir) {
 		free(dir->ent);
+		for(i=0; i<dir->fsent_size; i++) {
+			free(dir->fsent[i].name);
+		}
 		free(dir->fsent);
 		free(dir);
 	}
