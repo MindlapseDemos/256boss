@@ -620,6 +620,7 @@ static void parse_dir_entries(struct fat_dir *dir)
 
 		if(!DENT_IS_UNUSED(dent) && dent->attr != ATTR_VOLID && dent->attr != ATTR_LFN) {
 			if(dent_filename(dent, prev_dent, entname) > 0) {
+				printf("PDE: %s\n", entname);
 				if(!(eptr->name = malloc(strlen(entname) + 1))) {
 					panic("FAT: failed to allocate dirent name\n");
 				}
@@ -643,10 +644,12 @@ static void free_dir(struct fat_dir *dir)
 
 	if(dir) {
 		free(dir->ent);
-		for(i=0; i<dir->fsent_size; i++) {
-			free(dir->fsent[i].name);
+		if(dir->fsent) {
+			for(i=0; i<dir->fsent_size; i++) {
+				free(dir->fsent[i].name);
+			}
+			free(dir->fsent);
 		}
-		free(dir->fsent);
 		free(dir);
 	}
 }
