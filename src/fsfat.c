@@ -139,6 +139,8 @@ struct fat_lfnent {
 
 
 struct fat_dir {
+	struct fatfs *fatfs;
+
 	struct fat_dirent *ent;
 	int max_nent;
 
@@ -288,6 +290,7 @@ struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 	if(!(rootdir = malloc(sizeof *rootdir))) {
 		panic("FAT: failed to allocate root directory structure\n");
 	}
+	rootdir->fatfs = fatfs;
 	if(fatfs->type == FAT32) {
 		panic("FAT32 root dir not implemented yet\n");
 	} else {
@@ -407,6 +410,10 @@ static struct fs_node *lookup(struct filesys *fs, const char *path)
 		while(*ptr == '/') ptr++;	/* skip separators */
 		path = ptr;
 
+		if(name[0] == '.' && name[1] == 0) {
+			continue;
+		}
+
 		if(!(dent = find_entry(dir, name))) {
 			return 0;
 		}
@@ -425,6 +432,14 @@ static struct fs_node *lookup(struct filesys *fs, const char *path)
 	}
 	node->fs = fs;
 	if(dir) {
+		if(dir == fatfs->rootdir) {
+			if(!(newdir = malloc(sizeof *newdir))) {
+				panic("FAT: failed to allocate directory structure\n");
+			}
+			*newdir = *dir;
+			newdir->cur_ent = 0;
+			dir = newdir;
+		}
 		node->type = FSNODE_DIR;
 		node->data = dir;
 	} else {
@@ -590,6 +605,7 @@ static struct fat_dir *load_dir(struct fatfs *fs, struct fat_dirent *dent)
 	if(!(dir = malloc(sizeof *dir))) {
 		panic("FAT: failed to allocate directory structure\n");
 	}
+	dir->fatfs = fs;
 	dir->ent = (struct fat_dirent*)buf;
 	dir->max_nent = bufsz / sizeof *dir->ent;
 	dir->cur_ent = 0;
@@ -620,7 +636,6 @@ static void parse_dir_entries(struct fat_dir *dir)
 
 		if(!DENT_IS_UNUSED(dent) && dent->attr != ATTR_VOLID && dent->attr != ATTR_LFN) {
 			if(dent_filename(dent, prev_dent, entname) > 0) {
-				printf("PDE: %s\n", entname);
 				if(!(eptr->name = malloc(strlen(entname) + 1))) {
 					panic("FAT: failed to allocate dirent name\n");
 				}
@@ -641,10 +656,13 @@ static void parse_dir_entries(struct fat_dir *dir)
 static void free_dir(struct fat_dir *dir)
 {
 	int i;
+	struct fat_dir *root = dir->fatfs->rootdir;
 
 	if(dir) {
-		free(dir->ent);
-		if(dir->fsent) {
+		if(dir->ent != root->ent) {
+			free(dir->ent);
+		}
+		if(dir->fsent && dir->fsent != root->fsent) {
 			for(i=0; i<dir->fsent_size; i++) {
 				free(dir->fsent[i].name);
 			}
