@@ -15,6 +15,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -187,7 +188,7 @@ static int add_to_pool(struct mem_desc *mem)
 		pnode = iter->next;
 		if(mem->size == pnode->size) {	/* only coalesce same-sized blocks */
 			if((char*)mem == (char*)pnode - pnode->size) {
-				iter = pnode->next;	/* unlink pnode */
+				iter->next = pnode->next;	/* unlink pnode */
 				pools[pidx] = head.next;
 				mem->next = 0;
 				mem->size += pnode->size;
@@ -196,7 +197,7 @@ static int add_to_pool(struct mem_desc *mem)
 				return add_to_pool(mem);
 			}
 			if((char*)mem == (char*)pnode + pnode->size) {
-				iter = pnode->next;	/* unlink pnode */
+				iter->next = pnode->next;	/* unlink pnode */
 				pools[pidx] = head.next;
 				pnode->next = 0;
 				pnode->size += mem->size;
