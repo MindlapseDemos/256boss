@@ -153,7 +153,7 @@ struct fat_file {
 	struct fat_dirent ent;
 	int32_t first_clust;
 	int64_t cur_pos;
-	int32_t cur_clust;	/* cluster number corresponding to cur_offs */
+	int32_t cur_clust;	/* cluster number corresponding to cur_pos */
 
 	char *clustbuf;
 	int buf_valid;
@@ -309,9 +309,9 @@ struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 	fatfs->rootdir = rootdir;
 
 	/* assume cluster_size is a power of two */
-	fatfs->clust_mask = fatfs->cluster_size - 1;
+	fatfs->clust_mask = (fatfs->cluster_size * 512) - 1;
 	fatfs->clust_shift = 0;
-	while((1 << fatfs->clust_shift) < fatfs->cluster_size) {
+	while((1 << fatfs->clust_shift) < (fatfs->cluster_size * 512)) {
 		fatfs->clust_shift++;
 	}
 
@@ -328,44 +328,6 @@ struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 	if(fatfs->label[0]) {
 		printf("  volume label: %s\n", fatfs->label);
 	}
-
-	/* test */
-	/*
-	printf("root directory:\n");
-	dbg_printdir(fatfs->rootdir->ent, fatfs->rootdir->max_nent);
-	putchar('\n');
-
-	{
-		struct fs_node *node = lookup(fs, "/readme.md");
-		if(!node) {
-			printf("failed to find /readme.md\n");
-		} else {
-			if(node->type != FSNODE_FILE) {
-				printf("/readme.md isn't a file\n");
-			} else {
-				struct fat_file *file = node->data;
-				int32_t clustid = file->ent.first_cluster_low;
-				uint32_t bytes_left = file->ent.size_bytes;
-				char clustbuf[2048];
-
-				printf("contents of /readme.md (%lu bytes)\n", (unsigned long)bytes_left);
-
-				do {
-					char *ptr = clustbuf;
-					uint32_t sz = bytes_left > 2048 ? 2048 : bytes_left;
-					bytes_left -= sz;
-
-					read_cluster(fatfs, clustid, clustbuf);
-
-					for(i=0; i<sz; i++) {
-						putchar(*ptr++);
-					}
-
-				} while((clustid = next_cluster(fatfs, clustid)) >= 0);
-			}
-		}
-	}
-	*/
 
 	return fs;
 }
@@ -539,10 +501,67 @@ static long tell(struct fs_node *node)
 
 static int read(struct fs_node *node, void *buf, int sz)
 {
+	struct fatfs *fatfs;
+	struct fat_file *file;
+	char *bufptr = buf;
+	int num_read = 0;
+	int offs, len, buf_left, rd_left;
+	unsigned int cur_clust_idx, new_clust_idx;
+
+	if(!node || !buf || sz < 0 || node->type != FSNODE_FILE) {
+		return -1;
+	}
+
+	fatfs = node->fs->data;
+	file = node->data;
+
+	if(file->cur_clust < 0) {
+		return 0;	/* EOF */
+	}
+
+	cur_clust_idx = file->cur_pos >> fatfs->clust_shift;
+
+	while(num_read < sz) {
+		if(!file->buf_valid) {
+			read_cluster(fatfs, file->cur_clust, file->clustbuf);
+			file->buf_valid = 1;
+		}
+
+		offs = file->cur_pos & fatfs->clust_mask;
+		buf_left = fatfs->cluster_size * 512 - offs;
+		rd_left = sz - num_read;
+		len = buf_left < rd_left ? buf_left : rd_left;
+
+		if(file->cur_pos + len > file->ent.size_bytes) {
+			len = file->ent.size_bytes - file->cur_pos;
+		}
+
+		memcpy(bufptr, file->clustbuf + offs, len);
+		num_read += len;
+		bufptr += len;
+
+		file->cur_pos += len;
+		if(file->cur_pos >= file->ent.size_bytes) {
+			file->cur_clust = -1;
+			file->buf_valid = 0;
+			break;	/* reached EOF */
+		}
+
+		new_clust_idx = file->cur_pos >> fatfs->clust_shift;
+		if(new_clust_idx != cur_clust_idx) {
+			file->buf_valid = 0;
+			if((file->cur_clust = next_cluster(fatfs, file->cur_clust)) < 0) {
+				break;	/* reached EOF */
+			}
+			cur_clust_idx = new_clust_idx;
+		}
+	}
+	return num_read;
 }
 
 static int write(struct fs_node *node, void *buf, int sz)
 {
+	return -1;	/* TODO */
 }
 
 static int rewinddir(struct fs_node *node)
