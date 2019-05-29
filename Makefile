@@ -61,11 +61,11 @@ floppy.img: 256boss.img
 
 # bootldr.bin will contain only .boot and .boot2
 bootldr.bin: $(elf)
-	objcopy -O binary -j '.boot*' $< $@
+	objcopy -O binary -j '.boot*' -j .lowtext $< $@
 
 # the main binary will contain every section *except* .boot and .boot2
 $(bin): $(elf)
-	objcopy -O binary -R '.boot*' $< $@
+	objcopy -O binary -R '.boot*' -R .lowtext $< $@
 
 $(elf): $(obj)
 	$(LD) -o $@ $(obj) -Map link.map $(LDFLAGS)
@@ -93,7 +93,7 @@ bootldr.disasm: $(elf)
 	objdump -d $< -j .boot -j .boot2 -m i8086 >$@
 
 $(elf).disasm: $(elf)
-	objdump -d $< -j .startup -j .text -m i386 >$@
+	objdump -d $< -j .startup -j .text -j .lowtext -m i386 >$@
 
 $(elf).sym: $(elf)
 	objcopy --only-keep-debug $< $@
