@@ -27,6 +27,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "fs.h"
 #include "contty.h"
 #include "panic.h"
+#include "comloader.h"
 
 static void print_prompt(void);
 static int cmd_clear(int argc, char **argv);
@@ -35,6 +36,8 @@ static int cmd_help(int argc, char **argv);
 static int cmd_chdir(int argc, char **argv);
 static int cmd_list(int argc, char **argv);
 static int cmd_cat(int argc, char **argv);
+
+static int cmd_run(int argc, char **argv);
 
 #define INBUF_SIZE		256
 
@@ -91,6 +94,7 @@ static struct {
 	{"ls", cmd_list},
 	{"cat", cmd_cat},
 	{"clear", cmd_clear},
+	{"run", cmd_run},
 	{"help", cmd_help},
 	{0, 0}
 };
@@ -326,5 +330,22 @@ static int cmd_cat(int argc, char **argv)
 		}
 	}
 eof:
+	return 0;
+}
+
+static int cmd_run(int argc, char **argv)
+{
+	if(argc < 2) {
+		printf("run what?\n");
+		return -1;
+	}
+
+	if(load_com_binary(argv[1]) == -1) {
+		return -1;
+	}
+
+	if(run_com_binary() == -1) {
+		return -1;
+	}
 	return 0;
 }

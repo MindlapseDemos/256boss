@@ -176,3 +176,33 @@ int_op:	int $0
 	popal
 	pop %ebp
 	ret
+
+
+	# interrupt handler called from int86 to start execution of a COM file
+	# already loaded in the low memory buffer at offset 256
+	.code16
+	.global run_com_entry
+run_com_entry:
+	mov $low_mem_buffer, %dx
+	shr $4, %dx
+
+	# modify the ljmp instruction to jump to the correct CS
+	mov $ljmpop, %bx
+	mov %dx, 3(%bx)
+	# flush instruction cache
+	ljmp $0,$0f
+0:
+	mov %dx, %ds
+	mov %dx, %es
+	mov %dx, %ss
+
+	# replicate initial register values COM files start with under MS-DOS
+	xor %ax, %ax
+	xor %bx, %bx
+	mov $0xff, %cx
+	mov $0x100, %si
+	mov $0xfffe, %di
+	mov %di, %sp
+	mov $0x900, %bp
+
+ljmpop:	ljmp $42,$0x100

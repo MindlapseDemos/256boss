@@ -90,7 +90,7 @@ cleandep:
 disasm: bootldr.disasm $(elf).disasm
 
 bootldr.disasm: $(elf)
-	objdump -d $< -j .boot -j .boot2 -m i8086 >$@
+	objdump -d $< -j .boot -j .boot2 -j .lowtext -m i8086 >$@
 
 $(elf).disasm: $(elf)
 	objdump -d $< -j .startup -j .text -j .lowtext -m i386 >$@
