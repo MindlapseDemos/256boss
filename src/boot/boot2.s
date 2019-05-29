@@ -790,7 +790,6 @@ boot_mem_map_size: .long 0
 	.global boot_mem_map
 boot_mem_map: .space 128
 
-
 	.align 4
 	.global boot_drive_number
 boot_drive_number:

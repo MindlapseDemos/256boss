@@ -59,11 +59,11 @@ floppy.img: 256boss.img
 256boss.img: bootldr.bin $(bin)
 	cat bootldr.bin $(bin) >$@
 
-# bootldr.bin will contain only .boot and .boot2
+# bootldr.bin will contain .boot, .boot2, .bootend, and .lowtext
 bootldr.bin: $(elf)
 	objcopy -O binary -j '.boot*' -j .lowtext $< $@
 
-# the main binary will contain every section *except* .boot and .boot2
+# the main binary will contain every section *except* those
 $(bin): $(elf)
 	objcopy -O binary -R '.boot*' -R .lowtext $< $@
 
