@@ -147,6 +147,8 @@ struct fat_dir {
 	struct fs_dirent *fsent;
 	int fsent_size;
 	int cur_ent;
+
+	int ref;
 };
 
 struct fat_file {
@@ -306,6 +308,7 @@ struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 		}
 	}
 	parse_dir_entries(rootdir);
+	rootdir->ref = 1;
 	fatfs->rootdir = rootdir;
 
 	/* assume cluster_size is a power of two */
@@ -382,7 +385,7 @@ static struct fs_node *lookup(struct filesys *fs, const char *path)
 		fatdent = dent->data;
 
 		newdir = fatdent->attr == ATTR_DIR ? load_dir(fatfs, fatdent) : 0;
-		if(dir != fatfs->rootdir) {
+		if(dir != fatfs->rootdir || dir != cwdnode->data) {
 			free_dir(dir);
 		}
 		dir = newdir;
@@ -399,11 +402,13 @@ static struct fs_node *lookup(struct filesys *fs, const char *path)
 				panic("FAT: failed to allocate directory structure\n");
 			}
 			*newdir = *dir;
-			newdir->cur_ent = 0;
 			dir = newdir;
+			dir->ref = 0;
 		}
 		node->type = FSNODE_DIR;
 		node->data = dir;
+		dir->cur_ent = 0;
+		dir->ref++;
 	} else {
 		node->type = FSNODE_FILE;
 		if(!(node->data = init_file(fatfs, fatdent))) {
@@ -628,6 +633,7 @@ static struct fat_dir *load_dir(struct fatfs *fs, struct fat_dirent *dent)
 	dir->ent = (struct fat_dirent*)buf;
 	dir->max_nent = bufsz / sizeof *dir->ent;
 	dir->cur_ent = 0;
+	dir->ref = 0;
 
 	parse_dir_entries(dir);
 	return dir;
@@ -658,6 +664,7 @@ static void parse_dir_entries(struct fat_dir *dir)
 				if(!(eptr->name = malloc(strlen(entname) + 1))) {
 					panic("FAT: failed to allocate dirent name\n");
 				}
+				printf("ALLOC ent[%d].name: %p\n", eptr - dir->fsent, eptr->name);
 				strcpy(eptr->name, entname);
 				eptr->data = dent;
 				eptr++;
@@ -678,11 +685,14 @@ static void free_dir(struct fat_dir *dir)
 	struct fat_dir *root = dir->fatfs->rootdir;
 
 	if(dir) {
+		if(--dir->ref > 0) return;
+
 		if(dir->ent != root->ent) {
 			free(dir->ent);
 		}
 		if(dir->fsent && dir->fsent != root->fsent) {
 			for(i=0; i<dir->fsent_size; i++) {
+				printf("FREE ent[%d].name: %p\n", i, dir->fsent[i].name);
 				free(dir->fsent[i].name);
 			}
 			free(dir->fsent);

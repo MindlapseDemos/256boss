@@ -22,13 +22,19 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "mem.h"
 #include "panic.h"
 
+#define MALLOC_DEBUG
+
 struct mem_desc {
 	size_t size;
 	uint32_t magic;
+#ifdef MALLOC_DEBUG
+	uint32_t dbg;
+#endif
 	struct mem_desc *next;
 };
 
-#define MAGIC	0xdeadf00d
+#define MAGIC_USED	0xdeadf00d
+#define MAGIC_FREE	0x1ee7d00d
 
 #define DESC_PTR(b)	((void*)((struct mem_desc*)(b) + 1))
 #define PTR_DESC(p)	((struct mem_desc*)(p) - 1)
@@ -69,7 +75,7 @@ void *malloc(size_t sz)
 			return 0;
 		}
 		mem = PAGE_TO_PTR(pg0);
-		mem->magic = MAGIC;
+		mem->magic = MAGIC_USED;
 		mem->size = total_sz;
 		mem->next = 0;
 		return DESC_PTR(mem);
@@ -94,7 +100,10 @@ void *malloc(size_t sz)
 				add_to_pool(other);
 			}
 
-			mem->magic = MAGIC;
+			if(mem->magic != MAGIC_FREE) {
+				panic("Trying to allocate range surrounded by an aura of wrong MAGIC\n");
+			}
+			mem->magic = MAGIC_USED;
 			return DESC_PTR(mem);
 		}
 
@@ -110,7 +119,7 @@ void *malloc(size_t sz)
 	mem = PAGE_TO_PTR(pg0);
 	mem->size = MAX_POOL_SIZE;
 	mem->next = pools[pidx];
-	mem->magic = MAGIC;
+	mem->magic = MAGIC_FREE;
 	pools[pidx] = mem;
 
 	/* try again now that there is a free block */
@@ -123,8 +132,12 @@ void free(void *p)
 	int pg0;
 	struct mem_desc *mem = PTR_DESC(p);
 
-	if(mem->magic != MAGIC) {
-		panic("free: corrupted magic!\n");
+	if(mem->magic != MAGIC_USED) {
+		if(mem->magic == MAGIC_FREE) {
+			panic("free(%p): double-free\n", p);
+		} else {
+			panic("free(%p): corrupted magic (%x)!\n", p, mem->magic);
+		}
 	}
 
 	if(mem->size > MAX_POOL_SIZE) {
@@ -170,20 +183,24 @@ void *realloc(void *ptr, size_t size)
 	return newp;
 }
 
+#ifdef MALLOC_DEBUG
 static void check_cycles(struct mem_desc *mem)
 {
 	static uint32_t dbg = 42;
+	uint32_t cur_dbg = dbg++;
 
-	while(mem && mem->magic != dbg) {
-		mem->magic = dbg;
+	while(mem) {
+		if(mem->magic != MAGIC_FREE) {
+			panic("check_cycles: NON-FREE MAGIC!\n");
+		}
+		if(mem->dbg == cur_dbg) {
+			panic("CYCLE DETECTED\n");
+		}
+		mem->dbg = cur_dbg;
 		mem = mem->next;
 	}
-
-	if(mem) {
-		panic("CYCLE DETECTED\n");
-	}
-	dbg++;
 }
+#endif	/* MALLOC_DEBUG */
 
 static int add_to_pool(struct mem_desc *mem)
 {
@@ -193,7 +210,7 @@ static int add_to_pool(struct mem_desc *mem)
 
 	pidx = pool_index(mem->size);
 
-	printf("adding %ld block to pool %d\n", (unsigned long)mem->size, pidx);
+	/*printf("adding %ld block to pool %d\n", (unsigned long)mem->size, pidx);*/
 
 	iter = &head;
 	head.next = pools[pidx];
@@ -209,7 +226,7 @@ static int add_to_pool(struct mem_desc *mem)
 				mem->next = 0;
 				mem->size += size;
 
-				printf("  coalescing %p with %p and ", (void*)mem, (void*)pnode);
+				/*printf("  coalescing %p with %p and ", (void*)mem, (void*)pnode);*/
 				return add_to_pool(mem);
 			}
 			if((char*)mem == (char*)pnode + size) {
@@ -218,7 +235,7 @@ static int add_to_pool(struct mem_desc *mem)
 				pnode->next = 0;
 				pnode->size += size;
 
-				printf("  coalescing %p with %p and ", (void*)mem, (void*)pnode);
+				/*printf("  coalescing %p with %p and ", (void*)mem, (void*)pnode);*/
 				return add_to_pool(pnode);
 			}
 		}
@@ -226,6 +243,7 @@ static int add_to_pool(struct mem_desc *mem)
 	}
 
 	/* otherwise just add it to the pool */
+	mem->magic = MAGIC_FREE;
 	mem->next = pools[pidx];
 	pools[pidx] = mem;
 
