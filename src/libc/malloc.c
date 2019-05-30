@@ -170,6 +170,20 @@ void *realloc(void *ptr, size_t size)
 	return newp;
 }
 
+static void check_cycles(struct mem_desc *mem)
+{
+	static uint32_t dbg = 42;
+
+	while(mem && mem->magic != dbg) {
+		mem->magic = dbg;
+		mem = mem->next;
+	}
+
+	if(mem) {
+		panic("CYCLE DETECTED\n");
+	}
+	dbg++;
+}
 
 static int add_to_pool(struct mem_desc *mem)
 {
@@ -179,7 +193,7 @@ static int add_to_pool(struct mem_desc *mem)
 
 	pidx = pool_index(mem->size);
 
-	/*printf("adding %ld block to pool %d\n", (unsigned long)mem->size, pidx);*/
+	printf("adding %ld block to pool %d\n", (unsigned long)mem->size, pidx);
 
 	iter = &head;
 	head.next = pools[pidx];
@@ -187,22 +201,24 @@ static int add_to_pool(struct mem_desc *mem)
 	while(iter->next) {
 		pnode = iter->next;
 		if(mem->size == pnode->size) {	/* only coalesce same-sized blocks */
-			if((char*)mem == (char*)pnode - pnode->size) {
+			size_t size = mem->size;
+
+			if((char*)mem == (char*)pnode - size) {
 				iter->next = pnode->next;	/* unlink pnode */
 				pools[pidx] = head.next;
 				mem->next = 0;
-				mem->size += pnode->size;
+				mem->size += size;
 
-				/*printf("  coalescing %p with %p and ", (void*)mem, (void*)pnode);*/
+				printf("  coalescing %p with %p and ", (void*)mem, (void*)pnode);
 				return add_to_pool(mem);
 			}
-			if((char*)mem == (char*)pnode + pnode->size) {
+			if((char*)mem == (char*)pnode + size) {
 				iter->next = pnode->next;	/* unlink pnode */
 				pools[pidx] = head.next;
 				pnode->next = 0;
-				pnode->size += mem->size;
+				pnode->size += size;
 
-				/*printf("  coalescing %p with %p and ", (void*)mem, (void*)pnode);*/
+				printf("  coalescing %p with %p and ", (void*)mem, (void*)pnode);
 				return add_to_pool(pnode);
 			}
 		}
@@ -212,6 +228,8 @@ static int add_to_pool(struct mem_desc *mem)
 	/* otherwise just add it to the pool */
 	mem->next = pools[pidx];
 	pools[pidx] = mem;
+
+	check_cycles(pools[pidx]);
 	return 0;
 }
 

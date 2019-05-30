@@ -93,7 +93,11 @@ struct fs_node *fs_open(const char *path)
 
 int fs_close(struct fs_node *node)
 {
-	struct fs_operations *fsop = node->fs->fsop;
+	struct fs_operations *fsop;
+
+	if(!node) return -1;
+
+	fsop = node->fs->fsop;
 	fsop->close(node);
 	return 0;
 }
