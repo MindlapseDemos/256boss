@@ -385,7 +385,7 @@ static struct fs_node *lookup(struct filesys *fs, const char *path)
 		fatdent = dent->data;
 
 		newdir = fatdent->attr == ATTR_DIR ? load_dir(fatfs, fatdent) : 0;
-		if(dir != fatfs->rootdir || dir != cwdnode->data) {
+		if(dir != fatfs->rootdir && dir != cwdnode->data) {
 			free_dir(dir);
 		}
 		dir = newdir;
@@ -664,7 +664,6 @@ static void parse_dir_entries(struct fat_dir *dir)
 				if(!(eptr->name = malloc(strlen(entname) + 1))) {
 					panic("FAT: failed to allocate dirent name\n");
 				}
-				printf("ALLOC ent[%d].name: %p\n", eptr - dir->fsent, eptr->name);
 				strcpy(eptr->name, entname);
 				eptr->data = dent;
 				eptr++;
@@ -689,13 +688,12 @@ static void free_dir(struct fat_dir *dir)
 
 		if(dir->ent != root->ent) {
 			free(dir->ent);
-		}
-		if(dir->fsent && dir->fsent != root->fsent) {
-			for(i=0; i<dir->fsent_size; i++) {
-				printf("FREE ent[%d].name: %p\n", i, dir->fsent[i].name);
-				free(dir->fsent[i].name);
+			if(dir->fsent) {
+				for(i=0; i<dir->fsent_size; i++) {
+					free(dir->fsent[i].name);
+				}
+				free(dir->fsent);
 			}
-			free(dir->fsent);
 		}
 		free(dir);
 	}
