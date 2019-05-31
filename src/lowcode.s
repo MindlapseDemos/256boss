@@ -192,6 +192,11 @@ run_com_entry:
 	# flush instruction cache
 	ljmp $0,$0f
 0:
+
+	# place a trampoline at the start of the segment to allow for
+	# long-call/retf from there, if the COM file does a ret TODO
+
+	mov %sp, saved_sp
 	mov %dx, %ds
 	mov %dx, %es
 	mov %dx, %ss
@@ -205,4 +210,41 @@ run_com_entry:
 	mov %di, %sp
 	mov $0x900, %bp
 
-ljmpop:	ljmp $42,$0x100
+	sti
+ljmpop:	lcall $42,$0
+	cli
+
+	xor %ax, %ax
+	mov %ax, %ds
+	mov %ax, %es
+	mov %ax, %ss
+	mov saved_sp, %sp
+
+	# XXX remove later, handle video mode restore in C
+	mov $3, %ax
+	int $0x10
+
+	iret 
+
+saved_sp: .short 0
+
+trampoline:
+	call end_trampoline
+	retf
+end_trampoline:
+
+
+	.global rm_keyb_intr
+rm_keyb_intr:
+	mov $0x13, %ax
+	int $0x10
+
+	pushw $0xa000
+	pop %es
+	xor %di, %di
+	mov $0x0404, %ax
+	mov $32000, %cx
+	rep stosw
+
+	cli
+	hlt

@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "comloader.h"
 #include "boot.h"
 #include "int86.h"
+#include "intr.h"
 
 #define COMRUN_INT	0xf0
 
@@ -42,7 +43,11 @@ int load_com_binary(const char *path)
 	return 0;
 }
 
+#define KBIRQ	1
+#define KBINTR	IRQ_TO_INTR(KBIRQ)
+
 extern int run_com_entry;
+extern int rm_keyb_intr;
 
 int run_com_binary(void)
 {
@@ -54,6 +59,8 @@ int run_com_binary(void)
 	entry_addr = (uint32_t)&run_com_entry;
 	ivt[COMRUN_INT * 2] = entry_addr;	/* offs */
 	ivt[COMRUN_INT * 2 + 1] = 0;		/* seg */
+	ivt[KBINTR * 2] = (uint32_t)&rm_keyb_intr;
+	ivt[KBINTR * 2 + 1] = 0;
 
 	int86(COMRUN_INT, &regs);
 	return regs.eax;
