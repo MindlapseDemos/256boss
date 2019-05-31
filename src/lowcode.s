@@ -218,6 +218,9 @@ run_com_entry:
 
 	sti
 ljmpop:	lcall $42,$0
+
+	.global run_com_return
+run_com_return:
 	cli
 
 	xor %ax, %ax

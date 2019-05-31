@@ -48,6 +48,7 @@ int load_com_binary(const char *path)
 
 extern int run_com_entry;
 extern int rm_keyb_intr;
+extern int dos_int21h_entry;
 
 int run_com_binary(void)
 {
@@ -61,6 +62,8 @@ int run_com_binary(void)
 	ivt[COMRUN_INT * 2 + 1] = 0;		/* seg */
 	ivt[KBINTR * 2] = (uint32_t)&rm_keyb_intr;
 	ivt[KBINTR * 2 + 1] = 0;
+	ivt[0x21 * 2] = (uint32_t)&dos_int21h_entry;
+	ivt[0x21 * 2 + 1] = 0;
 
 	int86(COMRUN_INT, &regs);
 	return regs.eax;
