@@ -240,15 +240,13 @@ saved_sp: .short 0
 
 	.global rm_keyb_intr
 rm_keyb_intr:
-	mov $0x13, %ax
-	int $0x10
-
-	pushw $0xa000
-	pop %es
-	xor %di, %di
-	mov $0x0404, %ax
-	mov $32000, %cx
-	rep stosw
-
 	cli
-	hlt
+	in $0x60, %al
+	mov %al, %bl
+	# send EOI and jump to the return code if ESC was pressed
+	mov $0x20, %al
+	outb %al, $0x20
+	#dec %bl
+	#jnz 0f
+	ljmp $0,$run_com_return
+#0:	iret
