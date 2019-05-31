@@ -192,18 +192,24 @@ run_com_entry:
 	# flush instruction cache
 	ljmp $0,$0f
 0:
-
-	# place a trampoline at the start of the segment to allow for
-	# long-call/retf from there, if the COM file does a ret TODO
-
 	mov %sp, saved_sp
 	mov %dx, %ds
 	mov %dx, %es
 	mov %dx, %ss
+	nop
+
+	# place a trampoline at the start of the segment to allow for
+	# long-call/retf from there, if the COM file does a ret
+	xor %bx, %bx
+	# call 3 bytes: opcode e8 + 2 bytes relative offset 0xfd (0x100 - 3)
+	movb $0xe8, (%bx)
+	movb $0xfd, 1(%bx)
+	movb $0, 2(%bx)
+	# far return opcode cb
+	movb $0xcb, 3(%bx)
 
 	# replicate initial register values COM files start with under MS-DOS
 	xor %ax, %ax
-	xor %bx, %bx
 	mov $0xff, %cx
 	mov $0x100, %si
 	mov $0xfffe, %di
@@ -218,6 +224,7 @@ ljmpop:	lcall $42,$0
 	mov %ax, %ds
 	mov %ax, %es
 	mov %ax, %ss
+	nop
 	mov saved_sp, %sp
 
 	# XXX remove later, handle video mode restore in C
@@ -227,12 +234,6 @@ ljmpop:	lcall $42,$0
 	iret 
 
 saved_sp: .short 0
-
-trampoline:
-	call end_trampoline
-	retf
-end_trampoline:
-
 
 	.global rm_keyb_intr
 rm_keyb_intr:
