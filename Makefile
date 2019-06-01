@@ -1,4 +1,4 @@
-csrc = $(wildcard src/*.c) $(wildcard src/libc/*.c)
+csrc = $(wildcard src/*.c) $(wildcard src/libc/*.c) $(wildcard src/dtx/*.c)
 ssrc = $(wildcard src/*.s) $(wildcard src/libc/*.s) $(wildcard src/boot/*.s)
 Ssrc = $(wildcard src/*.S)
 obj = $(csrc:.c=.o) $(ssrc:.s=.o) $(Ssrc:.S=.o)
@@ -10,6 +10,7 @@ warn = -pedantic -Wall
 #opt = -O2
 dbg = -g
 inc = -Isrc -Isrc/libc
+def = -DNO_FREETYPE -DNO_OPENGL
 gccopt = -fno-pic -ffreestanding -nostdinc -fno-builtin
 
 CFLAGS = $(ccarch) -march=i386 $(warn) $(opt) $(dbg) $(gccopt) $(inc) $(def)

@@ -37,6 +37,14 @@ int vsprintf(char *buf, const char *fmt, va_list ap);
 int snprintf(char *buf, size_t sz, const char *fmt, ...);
 int vsnprintf(char *buf, size_t sz, const char *fmt, va_list ap);
 
+/* TODO
+int fscanf(FILE *fp, const char *fmt, ...);
+int vfscanf(FILE *fp, const char *fmt, va_list ap);
+
+int sscanf(const char *str, const char *fmt, ...);
+int vsscanf(const char *ptr, const char *fmt, va_list ap);
+*/
+
 /* printf to the serial port */
 int ser_printf(const char *fmt, ...);
 int ser_vprintf(const char *fmt, va_list ap);
@@ -51,5 +59,8 @@ long ftell(FILE *fp);
 
 size_t fread(void *buf, size_t size, size_t count, FILE *fp);
 size_t fwrite(const void *buf, size_t size, size_t count, FILE *fp);
+
+int fgetc(FILE *fp);
+char *fgets(char *buf, int size, FILE *fp);
 
 #endif	/* STDIO_H_ */

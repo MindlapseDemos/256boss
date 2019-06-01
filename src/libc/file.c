@@ -137,5 +137,26 @@ size_t fwrite(const void *buf, size_t size, size_t count, FILE *fp)
 	return res / size;
 }
 
+int fgetc(FILE *fp)
+{
+	char c;
+	if(fread(&c, 1, 1, fp) < 1) {
+		return -1;
+	}
+	return c;
+}
+
+char *fgets(char *buf, int size, FILE *fp)
+{
+	int c;
+	char *s = buf;
+
+	while(--size > 0 && (c = fgetc(fp)) >= 0) {
+		*s++ = c;
+		if(c == '\n') break;
+	}
+	*s = 0;
+	return s > buf ? buf : 0;
+}
 
 #endif	/* FILE_H_ */

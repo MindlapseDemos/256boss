@@ -29,9 +29,6 @@ demoparty. Just create a FAT filesystem on the USB stick, copy every 256byte
 intro you want onto it, and install 256boss on that USB stick by following our
 simple installation instructions for each platform.
 
-*Not done yet* ... more info as the project progresses, and the concept becomes
-a reality.
-
 Project website: TODO
 Source code repository: https://github.com/MindlapseDemos/256boss
 
@@ -54,4 +51,4 @@ TODO
 
 Build instructions
 ------------------
-TODO
+Just type make.

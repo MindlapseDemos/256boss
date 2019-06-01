@@ -1,6 +1,6 @@
 /*
 pcboot - bootable PC demo/game kernel
-Copyright (C) 2018  John Tsiombikas <nuclear@member.fsf.org>
+Copyright (C) 2018-2019  John Tsiombikas <nuclear@member.fsf.org>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -30,8 +30,10 @@ enum {
 
 extern void pcboot_putchar(int c);
 
-static void bwrite(int out, char *buf, size_t buf_sz, char *str, int sz);
 static int intern_printf(int out, char *buf, size_t sz, const char *fmt, va_list ap);
+static int intern_scanf(const char *instr, FILE *infile, const char *fmt, va_list ap);
+static void bwrite(int out, char *buf, size_t buf_sz, char *str, int sz);
+/*static int readchar(const char *str, FILE *fp);*/
 
 int putchar(int c)
 {
@@ -49,10 +51,6 @@ int puts(const char *s)
 }
 
 /* -- printf and friends -- */
-
-static char *convc = "dioxXucsfeEgGpn%";
-
-#define IS_CONV(c)	strchr(convc, c)
 
 int printf(const char *fmt, ...)
 {
@@ -127,6 +125,9 @@ int ser_vprintf(const char *fmt, va_list ap)
  *   by the (v)snprintf variants to avoid buffer overflows.
  * The rest are obvious, format string and variable argument list.
  */
+static char *convc = "dioxXucsfeEgGpn%";
+
+#define IS_CONV(c)	strchr(convc, c)
 
 #define BUF(x)	((x) ? (x) + cnum : (x))
 #define SZ(x)	((x) ? (x) - cnum : (x))
@@ -284,6 +285,18 @@ static int intern_printf(int out, char *buf, size_t sz, const char *fmt, va_list
 }
 
 
+#if 0
+static char *sconvc = "diouxcsefg%";
+
+#define IS_SCONV(c)	strchr(sconvc, c)
+
+static int intern_scanf(const char *instr, FILE *infile, const char *fmt, va_list ap)
+{
+	return -1;	/* TODO */
+}
+#endif
+
+
 /* bwrite is called by intern_printf to transparently handle writing into a
  * buffer or to the terminal
  */
@@ -317,3 +330,24 @@ static void bwrite(int out, char *buf, size_t buf_sz, char *str, int sz)
 	}
 }
 
+/*
+static int readchar(const char *str, FILE *fp)
+{
+	static const char *orig_str;
+	static const char *sptr;
+
+	if(str) {
+		if(str == orig_str) {
+			if(!*sptr) return -1;
+			return *sptr++;
+		} else {
+			orig_str = sptr = str;
+			return readchar(str, fp);
+		}
+	} else {
+		return fgetc(fp);
+	}
+
+	return -1;
+}
+*/

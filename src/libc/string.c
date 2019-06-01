@@ -1,5 +1,5 @@
 /*
-256boss - bootable launcher for 256byte intros
+pcboot - bootable PC demo/game kernel
 Copyright (C) 2018-2019  John Tsiombikas <nuclear@member.fsf.org>
 
 This program is free software: you can redistribute it and/or modify
@@ -113,9 +113,65 @@ int strcasecmp(const char *s1, const char *s2)
 	return tolower(*s1) - tolower(*s2);
 }
 
+int strncmp(const char *s1, const char *s2, int n)
+{
+	if(n <= 0) return 0;
+
+	while(n-- > 0 && *s1 && *s2 && *s1 == *s2) {
+		s1++;
+		s2++;
+	}
+	return *s1 - *s2;
+}
+
+int strncasecmp(const char *s1, const char *s2, int n)
+{
+	if(n <= 0) return 0;
+
+	while(n-- > 0 && *s1 && *s2 && tolower(*s1) == tolower(*s2)) {
+		s1++;
+		s2++;
+	}
+	return tolower(*s1) - tolower(*s2);
+}
+
 char *strcpy(char *dest, const char *src)
 {
 	char *dptr = dest;
 	while((*dptr++ = *src++));
 	return dest;
+}
+
+
+static const char *errstr[] = {
+	"Success",
+	"Foo",
+	"Interrupted",
+	"Invalid",
+	"Child",
+	"Timeout",
+	"Out of memory",
+	"I/O error",
+	"Not found",
+	"Name too long",
+	"No space left on device",
+	"Permission denied",
+	"Not a directory",
+	"Is a directory",
+	0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,
+	"Bug"
+};
+
+char *strerror(int err)
+{
+	if(err < 0 || err > sizeof errstr / sizeof *errstr || !errstr[err]) {
+		return "Unknown";
+	}
+	return (char*)errstr[err];
 }

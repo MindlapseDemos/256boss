@@ -1,6 +1,6 @@
 /*
 pcboot - bootable PC demo/game kernel
-Copyright (C) 2018  John Tsiombikas <nuclear@member.fsf.org>
+Copyright (C) 2018-2019  John Tsiombikas <nuclear@member.fsf.org>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include <stdlib.h>
 #include <ctype.h>
+#include <limits.h>
 
 int atoi(const char *str)
 {
@@ -32,6 +33,8 @@ long strtol(const char *str, char **endp, int base)
 {
 	long acc = 0;
 	int sign = 1;
+	int valid = 0;
+	const char *start = str;
 
 	while(isspace(*str)) str++;
 
@@ -55,7 +58,7 @@ long strtol(const char *str, char **endp, int base)
 	}
 
 	while(*str) {
-		long val;
+		long val = LONG_MAX;
 		char c = tolower(*str);
 
 		if(isdigit(c)) {
@@ -66,13 +69,14 @@ long strtol(const char *str, char **endp, int base)
 		if(val >= base) {
 			break;
 		}
+		valid = 1;
 
 		acc = acc * base + val;
 		str++;
 	}
 
 	if(endp) {
-		*endp = (char*)str;
+		*endp = (char*)(valid ? str : start);
 	}
 
 	return sign > 0 ? acc : -acc;
@@ -134,3 +138,56 @@ void utoa(unsigned int val, char *buf, int base)
 	*buf = 0;
 }
 
+double atof(const char *str)
+{
+	return strtod(str, 0);
+}
+
+
+double my_strtod(const char *str, char **endp)
+{
+	char *ep;
+	const char *start = str;
+	int valid = 0;
+	long ival = 0, dval = 0;
+	int ddig = 0;
+	double res;
+
+	/* integer part */
+	ival = strtol(str, &ep, 10);
+	if(ep == str && *str != '.') {
+		if(endp) *endp = (char*)str;
+		return 0.0;
+	}
+	if(ep != str) valid = 1;
+	str = *ep == '.' ? ep + 1 : ep;
+	if(!isdigit(*str)) {
+		goto done;
+	}
+	valid = 1;
+
+	dval = strtol(str, &ep, 10);
+	assert(dval >= 0);
+	ddig = ep - str;
+
+done:
+	if(*endp) {
+		*endp = (char*)(valid ? str : start);
+	}
+
+	res = (double)ival;
+	if(ddig) {
+		double d = (double)dval;
+		while(ddig-- > 0) {
+			d /= 10.0;
+		}
+		res += d;
+	}
+	return res;
+}
+
+int atexit(void (*func)(void))
+{
+	/* there's no concept of exiting at the moment, so this does nothing */
+	return 0;
+}

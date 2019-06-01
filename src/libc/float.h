@@ -15,32 +15,10 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#ifndef STRING_H_
-#define STRING_H_
+#ifndef FLOAT_H_
+#define FLOAT_H_
 
-#include <stdlib.h>
+#define FLT_MIN	__FLT_MIN__
+#define FLT_MAX	__FLT_MAX__
 
-void memset(void *s, int c, size_t n);
-void memset16(void *s, int c, size_t n);
-
-void *memcpy(void *dest, const void *src, size_t n);
-void *memmove(void *dest, const void *src, size_t n);
-
-size_t strlen(const char *s);
-
-char *strchr(const char *s, int c);
-char *strrchr(const char *s, int c);
-
-char *strstr(const char *str, const char *substr);
-
-int strcmp(const char *s1, const char *s2);
-int strcasecmp(const char *s1, const char *s2);
-
-int strncmp(const char *s1, const char *s2, int n);
-int strncasecmp(const char *s1, const char *s2, int n);
-
-char *strcpy(char *dest, const char *src);
-
-char *strerror(int err);
-
-#endif	/* STRING_H_ */
+#endif	/* FLOAT_H_ */

@@ -15,32 +15,20 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#ifndef STRING_H_
-#define STRING_H_
+#ifndef LIMITS_H_
+#define LIMITS_H_
 
-#include <stdlib.h>
+#define CHAR_BIT	8
 
-void memset(void *s, int c, size_t n);
-void memset16(void *s, int c, size_t n);
+#define SHRT_MIN	(-32768)
+#define SHRT_MAX	32767
+#define INT_MIN		(-2147483648)
+#define INT_MAX		2147483647
+#define LONG_MIN	(-2147483648)
+#define LONG_MAX	2147483647
 
-void *memcpy(void *dest, const void *src, size_t n);
-void *memmove(void *dest, const void *src, size_t n);
+#define USHRT_MAX	65535
+#define UINT_MAX	0xffffffff
+#define ULONG_MAX	0xffffffff
 
-size_t strlen(const char *s);
-
-char *strchr(const char *s, int c);
-char *strrchr(const char *s, int c);
-
-char *strstr(const char *str, const char *substr);
-
-int strcmp(const char *s1, const char *s2);
-int strcasecmp(const char *s1, const char *s2);
-
-int strncmp(const char *s1, const char *s2, int n);
-int strncasecmp(const char *s1, const char *s2, int n);
-
-char *strcpy(char *dest, const char *src);
-
-char *strerror(int err);
-
-#endif	/* STRING_H_ */
+#endif	/* LIMITS_H_ */
