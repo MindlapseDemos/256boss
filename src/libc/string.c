@@ -121,6 +121,8 @@ int strncmp(const char *s1, const char *s2, int n)
 		s1++;
 		s2++;
 	}
+
+	if(n <= 0) return 0;
 	return *s1 - *s2;
 }
 
@@ -132,6 +134,8 @@ int strncasecmp(const char *s1, const char *s2, int n)
 		s1++;
 		s2++;
 	}
+
+	if(n <= 0) return 0;
 	return tolower(*s1) - tolower(*s2);
 }
 

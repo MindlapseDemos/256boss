@@ -139,7 +139,7 @@ size_t fwrite(const void *buf, size_t size, size_t count, FILE *fp)
 
 int fgetc(FILE *fp)
 {
-	char c;
+	unsigned char c;
 	if(fread(&c, 1, 1, fp) < 1) {
 		return -1;
 	}

@@ -172,6 +172,7 @@ double strtod(const char *str, char **endp)
 	dval = strtol(str, &ep, 10);
 	assert(dval >= 0);
 	ddig = ep - str;
+	str = ep;
 
 done:
 	if(*endp) {
