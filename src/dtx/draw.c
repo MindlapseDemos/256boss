@@ -18,11 +18,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
-/*#if defined(WIN32) || defined(__WIN32__)
+#if defined(WIN32) || defined(__WIN32__)
 #include <malloc.h>
 #else
 #include <alloca.h>
-#endif*/
+#endif
 #include "drawtext.h"
 #include "drawtext_impl.h"
 
@@ -94,7 +94,7 @@ void dtx_printf(const char *fmt, ...)
 		buf_size = 512;
 	}
 
-	buf = __builtin_alloca(buf_size + 1);
+	buf = alloca(buf_size + 1);
 	va_start(ap, fmt);
 	vsnprintf(buf, buf_size + 1, fmt, ap);
 	va_end(ap);

@@ -32,16 +32,22 @@ static void glyphdraw(struct dtx_vertex *v, int vcount, struct dtx_pixmap *pixma
 
 static unsigned char *vmem = (unsigned char*)0xa0000;
 static struct dtx_font *font;
+static int fontsz;
 
 void splash_screen(void)
 {
+	struct dtx_glyphmap *gmap;
+
 	setup_video();
 
-	if(!(font = dtx_open_font_glyphmap(DATA_PATH "fontlow.glyphmap"))) {
+	if(!(font = dtx_open_font_glyphmap(DATA_PATH "fontlow.glyphmap")) ||
+			!(gmap = dtx_get_glyphmap(font, 0))) {
 		set_vga_mode(3);
 		printf("Failed to load font: " DATA_PATH "%s\n");
 		return;
 	}
+	fontsz = dtx_get_glyphmap_ptsize(gmap);
+	dtx_use_font(font, fontsz);
 	dtx_target_user(glyphdraw, 0);
 
 	for(;;) {
@@ -97,6 +103,7 @@ static void glyphdraw(struct dtx_vertex *v, int vcount, struct dtx_pixmap *pixma
 			if(y < ymin) ymin = y;
 			if(y > ymax) ymax = y;
 		}
+		v += 4;
 
 		x = xmin;
 		y = ymin;

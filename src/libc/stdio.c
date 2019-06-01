@@ -168,6 +168,7 @@ static int intern_printf(int out, char *buf, size_t sz, const char *fmt, va_list
 
 					if(alt) {
 						bwrite(out, BUF(buf), SZ(sz), "0x", 2);
+						cnum += 2;
 					}
 
 				case 'u':
@@ -179,6 +180,7 @@ static int intern_printf(int out, char *buf, size_t sz, const char *fmt, va_list
 
 						if(alt) {
 							bwrite(out, BUF(buf), SZ(sz), "0", 1);
+							cnum++;
 						}
 					}
 
@@ -201,7 +203,7 @@ static int intern_printf(int out, char *buf, size_t sz, const char *fmt, va_list
 						cnum++;
 					}
 
-					bwrite(out, BUF(buf), SZ(sz), conv_buf, strlen(conv_buf));
+					bwrite(out, BUF(buf), SZ(sz), conv_buf, slen);
 					cnum += slen;
 					break;
 
@@ -281,7 +283,7 @@ static int intern_printf(int out, char *buf, size_t sz, const char *fmt, va_list
 		}
 	}
 
-	return 0;
+	return cnum;
 }
 
 
