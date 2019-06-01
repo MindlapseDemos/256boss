@@ -35,6 +35,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "kbregs.h"
 #include "shell.h"
 
+void splash_screen(void);
 
 static void mount_boot_fs(void);
 static void print_intr_state(void);
@@ -63,6 +64,12 @@ void kmain(void)
 	bdev_init();
 
 	mount_boot_fs();
+
+	if(!kb_isdown(KB_F8)) {
+		splash_screen();
+	}
+
+	/* debug shell. we end up here if we hold down F8 during startup */
 	sh_init();
 
 	for(;;) {

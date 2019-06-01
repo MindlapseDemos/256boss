@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <stdlib.h>
 #include <ctype.h>
 #include <limits.h>
+#include <assert.h>
 
 int atoi(const char *str)
 {
@@ -63,8 +64,10 @@ long strtol(const char *str, char **endp, int base)
 
 		if(isdigit(c)) {
 			val = *str - '0';
-		} else if(c >= 'a' || c <= 'f') {
+		} else if(c >= 'a' && c <= 'f') {
 			val = 10 + c - 'a';
+		} else {
+			break;
 		}
 		if(val >= base) {
 			break;
@@ -144,7 +147,7 @@ double atof(const char *str)
 }
 
 
-double my_strtod(const char *str, char **endp)
+double strtod(const char *str, char **endp)
 {
 	char *ep;
 	const char *start = str;

@@ -38,6 +38,7 @@ void panic(const char *fmt, ...)
 	uint32_t eip;
 
 	disable_intr();
+	set_vga_mode(3);
 
 	memset(&regs, 0, sizeof regs);
 	get_regs(&regs);

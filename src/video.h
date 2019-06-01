@@ -41,5 +41,6 @@ int get_color_shift(int *rshift, int *gshift, int *bshift);
 
 /* defined in video_asm.s */
 void wait_vsync(void);
+void set_pal_entry(unsigned char idx, unsigned char r, unsigned char g, unsigned char b);
 
 #endif	/* VIDEO_H_ */

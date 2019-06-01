@@ -797,6 +797,7 @@ static struct dtx_glyphmap *load_glyphmap(struct io *io)
 	int max_code = INT_MIN;
 	int i, max_pixval = 255, num_pixels;
 	int greyscale = 0;
+	char *endp;
 
 	if(!(gmap = calloc(1, sizeof *gmap))) {
 		fperror("failed to allocate glyphmap");
@@ -859,7 +860,11 @@ static struct dtx_glyphmap *load_glyphmap(struct io *io)
 				break;
 
 			case 1:
-				if(sscanf(line, "%d %d", &gmap->xsz, &gmap->ysz) != 2) {
+				gmap->xsz = strtol(line, &endp, 10);
+				if(endp != line) {
+					gmap->ysz = strtol(endp, 0, 10);
+				}
+				if(gmap->xsz <= 0 || gmap->ysz <= 0) {
 					printf("%s: invalid file format (dim)\n", __func__);
 					goto err;
 				}

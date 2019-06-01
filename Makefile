@@ -1,5 +1,10 @@
-csrc = $(wildcard src/*.c) $(wildcard src/libc/*.c) $(wildcard src/dtx/*.c)
-ssrc = $(wildcard src/*.s) $(wildcard src/libc/*.s) $(wildcard src/boot/*.s)
+csrc = $(wildcard src/*.c) \
+	   $(wildcard src/libc/*.c) \
+	   $(wildcard src/ui/*.c) \
+	   $(wildcard src/dtx/*.c)
+ssrc = $(wildcard src/*.s) \
+	   $(wildcard src/libc/*.s) \
+	   $(wildcard src/boot/*.s)
 Ssrc = $(wildcard src/*.S)
 obj = $(csrc:.c=.o) $(ssrc:.s=.o) $(Ssrc:.S=.o)
 dep = $(obj:.o=.d)
@@ -9,9 +14,9 @@ bin = 256boss.bin
 warn = -pedantic -Wall
 #opt = -O2
 dbg = -g
-inc = -Isrc -Isrc/libc
+inc = -Isrc -Isrc/libc -Isrc/dtx
 def = -DNO_FREETYPE -DNO_OPENGL
-gccopt = -fno-pic -ffreestanding -nostdinc -fno-builtin
+gccopt = -fno-pic -ffreestanding -nostdinc -fno-builtin -ffast-math
 
 CFLAGS = $(ccarch) -march=i386 $(warn) $(opt) $(dbg) $(gccopt) $(inc) $(def)
 ASFLAGS = $(asarch) -march=i386 $(dbg) -nostdinc -fno-builtin $(inc)
@@ -41,6 +46,8 @@ blank.img:
 	@echo - generating blank disk image with FAT partition ...
 	dd if=/dev/zero of=part.img bs=1024 count=63488
 	mkfs -t vfat -n 256BOSS part.img
+	mmd -i part.img ::.data
+	mcopy -i part.img data/* ::.data
 	dd if=/dev/zero of=$@ bs=1024 count=65536
 	echo start=2048 type=c | sfdisk $@
 	dd if=part.img of=$@ bs=512 seek=2048 conv=notrunc
@@ -109,3 +116,11 @@ debug: $(bin) $(elf).sym
 
 .PHONY: sym
 sym: $(elf).sym
+
+.PHONY: mount
+mount: disk.img
+	mount -o loop,offset=1048576 $< /mnt
+
+.PHONY: data
+data: disk.img
+	mcopy -D o -i $<@@1M data/* ::.data

@@ -30,6 +30,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "comloader.h"
 
 static void print_prompt(void);
+
+static int cmd_start(int argc, char **argv);
+
 static int cmd_clear(int argc, char **argv);
 static int cmd_help(int argc, char **argv);
 
@@ -90,6 +93,7 @@ static struct {
 	const char *name;
 	int (*func)(int, char**);
 } commands[] = {
+	{"start", cmd_start},
 	{"cd", cmd_chdir},
 	{"ls", cmd_list},
 	{"cat", cmd_cat},
@@ -208,6 +212,13 @@ void sh_input(int c)
 static void print_prompt(void)
 {
 	printf("> ");
+}
+
+void splash_screen(void);
+
+static int cmd_start(int argc, char **argv)
+{
+	splash_screen();
 }
 
 static int cmd_clear(int argc, char **argv)

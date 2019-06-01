@@ -130,8 +130,11 @@ void *malloc(size_t sz)
 void free(void *p)
 {
 	int pg0;
-	struct mem_desc *mem = PTR_DESC(p);
+	struct mem_desc *mem;
 
+	if(!p) return;
+
+	mem = PTR_DESC(p);
 	if(mem->magic != MAGIC_USED) {
 		if(mem->magic == MAGIC_FREE) {
 			panic("free(%p): double-free\n", p);
