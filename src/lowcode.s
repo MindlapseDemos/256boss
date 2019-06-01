@@ -246,7 +246,7 @@ rm_keyb_intr:
 	# send EOI and jump to the return code if ESC was pressed
 	mov $0x20, %al
 	outb %al, $0x20
-	#dec %bl
-	#jnz 0f
+	dec %bl
+	jnz 0f
 	ljmp $0,$run_com_return
-#0:	iret
+0:	iret

@@ -151,12 +151,17 @@ void dispatch_intr(struct intr_frame frm)
 
 void init_pic(void)
 {
+	prog_pic(IRQ_OFFSET);
+}
+
+void prog_pic(int offs)
+{
 	/* send ICW1 saying we'll follow with ICW4 later on */
 	outb(ICW1_INIT | ICW1_ICW4_NEEDED, PIC1_CMD);
 	outb(ICW1_INIT | ICW1_ICW4_NEEDED, PIC2_CMD);
 	/* send ICW2 with IRQ remapping */
-	outb(IRQ_OFFSET, PIC1_DATA);
-	outb(IRQ_OFFSET + 8, PIC2_DATA);
+	outb(offs, PIC1_DATA);
+	outb(offs + 8, PIC2_DATA);
 	/* send ICW3 to setup the master/slave relationship */
 	/* ... set bit3 = 3rd interrupt input has a slave */
 	outb(4, PIC1_DATA);

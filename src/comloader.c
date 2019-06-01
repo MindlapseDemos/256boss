@@ -43,27 +43,38 @@ int load_com_binary(const char *path)
 	return 0;
 }
 
+#define ORIG_IRQ_OFFS	8
 #define KBIRQ	1
-#define KBINTR	IRQ_TO_INTR(KBIRQ)
+#define KBINTR	(KBIRQ + ORIG_IRQ_OFFS)
 
 extern int run_com_entry;
 extern int rm_keyb_intr;
 extern int dos_int21h_entry;
 
+struct vector {
+	uint16_t offs, seg;
+} __attribute__((packed));
+
 int run_com_binary(void)
 {
-	uint16_t *ivt = 0;
+	struct vector *ivt = 0;
 	struct int86regs regs = {0};
-	uint32_t entry_addr;
+
+	/* Restore original PIC mapping
+	 * otherwise the DOS int21h interrupt and keyboard IRQ1 would conflict
+	 * The pmode mapping is restored at the end of int86
+	 * IF is also restored at the end of int86
+	 */
+	disable_intr();
+	prog_pic(8);
 
 	/* setup real mode interrupt handler for running COM files */
-	entry_addr = (uint32_t)&run_com_entry;
-	ivt[COMRUN_INT * 2] = entry_addr;	/* offs */
-	ivt[COMRUN_INT * 2 + 1] = 0;		/* seg */
-	ivt[KBINTR * 2] = (uint32_t)&rm_keyb_intr;
-	ivt[KBINTR * 2 + 1] = 0;
-	ivt[0x21 * 2] = (uint32_t)&dos_int21h_entry;
-	ivt[0x21 * 2 + 1] = 0;
+	ivt[COMRUN_INT].seg = 0;
+	ivt[COMRUN_INT].offs = (uint32_t)&run_com_entry;
+	ivt[KBINTR].seg = 0;
+	ivt[KBINTR].offs = (uint32_t)&rm_keyb_intr;
+	ivt[0x21].seg = 0;
+	ivt[0x21].offs = (uint32_t)&dos_int21h_entry;
 
 	int86(COMRUN_INT, &regs);
 	return regs.eax;
