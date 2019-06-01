@@ -48,6 +48,7 @@ static int opt_padding = 8;
 static int opt_save_ppm;
 
 static struct dtx_glyphmap *load_glyphmap(struct io *io);
+static int parse_glyphline(const char *str, struct glyph *g);
 
 #ifdef USE_FREETYPE
 static int init_freetype(void);
@@ -816,9 +817,6 @@ static struct dtx_glyphmap *load_glyphmap(struct io *io)
 		}
 
 		if(line[0] == '#') {
-			int c, res;
-			float x, y, xsz, ysz, orig_x, orig_y, adv, line_adv;
-			int ptsize;
 			char *ptr;
 			struct glyph tmpglyph;
 
@@ -838,11 +836,11 @@ static struct dtx_glyphmap *load_glyphmap(struct io *io)
 				g->next = glyphs;
 				glyphs = g;
 
-				if(c < min_code) {
-					min_code = c;
+				if(g->code < min_code) {
+					min_code = g->code;
 				}
-				if(c > max_code) {
-					max_code = c;
+				if(g->code > max_code) {
+					max_code = g->code;
 				}
 
 			} else {
