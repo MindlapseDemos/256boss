@@ -219,6 +219,7 @@ void splash_screen(void);
 static int cmd_start(int argc, char **argv)
 {
 	splash_screen();
+	return 0;
 }
 
 static int cmd_clear(int argc, char **argv)

@@ -71,9 +71,12 @@ end:
 
 static void setup_video(void)
 {
+	int i;
 	set_vga_mode(0x13);
-	set_pal_entry(0, 0, 0, 0);
-	set_pal_entry(255, 255, 255, 255);
+
+	for(i=0; i<256; i++) {
+		set_pal_entry(i, i, i, i);
+	}
 }
 
 static void draw(void)
@@ -87,33 +90,35 @@ static void draw(void)
 
 static void glyphdraw(struct dtx_vertex *v, int vcount, struct dtx_pixmap *pixmap, void *cls)
 {
-	int i, j, num = vcount / 4;
-	int x, y, w, h, xmin, xmax, ymin, ymax;
+	int i, j, k, num = vcount / 6;
+	int x, y, w, h;
+	int tx, ty;
 	unsigned char *fbptr;
+	unsigned char *sptr;
 
 	for(i=0; i<num; i++) {
-		xmin = xmax = v->x;
-		ymin = ymax = v->y;
+		tx = v[0].s * pixmap->width;
+		ty = v[2].t * pixmap->height;
+		w = v[2].s * pixmap->width - tx;
+		h = v[0].t * pixmap->width - ty;
 
-		for(j=1; j<4; j++) {
-			x = v[j].x;
-			y = v[j].y;
-			if(x < xmin) xmin = x;
-			if(x > xmax) xmax = x;
-			if(y < ymin) ymin = y;
-			if(y > ymax) ymax = y;
-		}
-		v += 4;
+		x = v[0].x;
+		y = v[0].y - h;
 
-		x = xmin;
-		y = ymin;
-		w = xmax - xmin;
-		h = ymax - ymin;
+		v += 6;
+		if(w <= 0 || h <= 0) continue;
 
 		fbptr = vmem + y * 320 + x;
+		sptr = pixmap->pixels + ty * pixmap->width + tx;
+
 		for(j=0; j<h; j++) {
-			memset(fbptr, 0xff, w);
+			for(k=0; k<w; k++) {
+				if(sptr[k]) {
+					fbptr[k] = sptr[k];
+				}
+			}
 			fbptr += 320;
+			sptr += pixmap->width;
 		}
 	}
 }
