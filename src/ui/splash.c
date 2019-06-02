@@ -40,7 +40,7 @@ void splash_screen(void)
 
 	setup_video();
 
-	if(!(font = dtx_open_font_glyphmap(DATA_PATH "fontlow.glyphmap")) ||
+	if(!(font = dtx_open_font_glyphmap(DATA_PATH "sans10.glyphmap")) ||
 			!(gmap = dtx_get_glyphmap(font, 0))) {
 		set_vga_mode(3);
 		printf("Failed to load font: " DATA_PATH "%s\n");
@@ -99,8 +99,8 @@ static void glyphdraw(struct dtx_vertex *v, int vcount, struct dtx_pixmap *pixma
 	for(i=0; i<num; i++) {
 		tx = v[0].s * pixmap->width;
 		ty = v[2].t * pixmap->height;
-		w = v[2].s * pixmap->width - tx;
-		h = v[0].t * pixmap->width - ty;
+		w = (v[2].s - v[0].s) * pixmap->width;
+		h = (v[0].t - v[2].t) * pixmap->height;
 
 		x = v[0].x;
 		y = v[0].y - h;
