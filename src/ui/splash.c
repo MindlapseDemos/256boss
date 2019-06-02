@@ -22,33 +22,17 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "asmops.h"
 #include "keyb.h"
 #include "video.h"
-#include "drawtext.h"
 
 #define DATA_PATH	"/.data/"
 
 static void setup_video(void);
 static void draw(void);
-static void glyphdraw(struct dtx_vertex *v, int vcount, struct dtx_pixmap *pixmap, void *cls);
 
 static unsigned char *vmem = (unsigned char*)0xa0000;
-static struct dtx_font *font;
-static int fontsz;
 
 void splash_screen(void)
 {
-	struct dtx_glyphmap *gmap;
-
 	setup_video();
-
-	if(!(font = dtx_open_font_glyphmap(DATA_PATH "sans10.glyphmap")) ||
-			!(gmap = dtx_get_glyphmap(font, 0))) {
-		set_vga_mode(3);
-		printf("Failed to load font: " DATA_PATH "%s\n");
-		return;
-	}
-	fontsz = dtx_get_glyphmap_ptsize(gmap);
-	dtx_use_font(font, fontsz);
-	dtx_target_user(glyphdraw, 0);
 
 	for(;;) {
 		int c;
@@ -82,43 +66,4 @@ static void setup_video(void)
 static void draw(void)
 {
 	memset(vmem, 0, 64000);
-
-	dtx_position(50, 100);
-	dtx_printf("hello world!");
-	dtx_flush();
-}
-
-static void glyphdraw(struct dtx_vertex *v, int vcount, struct dtx_pixmap *pixmap, void *cls)
-{
-	int i, j, k, num = vcount / 6;
-	int x, y, w, h;
-	int tx, ty;
-	unsigned char *fbptr;
-	unsigned char *sptr;
-
-	for(i=0; i<num; i++) {
-		tx = v[0].s * pixmap->width;
-		ty = v[2].t * pixmap->height;
-		w = (v[2].s - v[0].s) * pixmap->width;
-		h = (v[0].t - v[2].t) * pixmap->height;
-
-		x = v[0].x;
-		y = v[0].y - h;
-
-		v += 6;
-		if(w <= 0 || h <= 0) continue;
-
-		fbptr = vmem + y * 320 + x;
-		sptr = pixmap->pixels + ty * pixmap->width + tx;
-
-		for(j=0; j<h; j++) {
-			for(k=0; k<w; k++) {
-				if(sptr[k]) {
-					fbptr[k] = sptr[k];
-				}
-			}
-			fbptr += 320;
-			sptr += pixmap->width;
-		}
-	}
 }

@@ -15,27 +15,17 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#ifndef STDLIB_H_
-#define STDLIB_H_
+#ifndef STDDEF_H_
+#define STDDEF_H_
 
-#include <stddef.h>
+#include <inttypes.h>
 
-int atoi(const char *str);
-long atol(const char *str);
-long strtol(const char *str, char **endp, int base);
+typedef int32_t ssize_t;
+typedef uint32_t size_t;
+typedef int wchar_t;
 
-void itoa(int val, char *buf, int base);
-void utoa(unsigned int val, char *buf, int base);
+typedef int32_t ptrdiff_t;
 
-double atof(const char *str);
-double strtod(const char *str, char **endp);
+#define NULL	0
 
-int atexit(void (*func)(void));
-
-/* defined in malloc.c */
-void *malloc(size_t sz);
-void *calloc(size_t num, size_t sz);
-void *realloc(void *ptr, size_t sz);
-void free(void *ptr);
-
-#endif	/* STDLIB_H_ */
+#endif	/* STDDEF_H_ */

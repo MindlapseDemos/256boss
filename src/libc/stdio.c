@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 #include "contty.h"
 #include "serial.h"
 
@@ -100,6 +101,27 @@ int vsnprintf(char *buf, size_t sz, const char *fmt, va_list ap)
 	return intern_printf(OUT_BUF, buf, sz, fmt, ap);
 }
 
+int fprintf(FILE *fp, const char *fmt, ...)
+{
+	int res;
+	va_list ap;
+
+	va_start(ap, fmt);
+	res = vfprintf(fp, fmt, ap);
+	va_end(ap);
+	return res;
+}
+
+int vfprintf(FILE *fp, const char *fmt, va_list ap)
+{
+	if(fp == stdout || fp == stderr) {
+		return vprintf(fmt, ap);
+	}
+
+	panic("*fprintf for anything other than stdout/stderr, not implemented yet\n");
+	return 0;
+}
+
 int ser_printf(const char *fmt, ...)
 {
 	int res;
@@ -114,6 +136,11 @@ int ser_printf(const char *fmt, ...)
 int ser_vprintf(const char *fmt, va_list ap)
 {
 	return intern_printf(OUT_SER, 0, 0, fmt, ap);
+}
+
+void perror(const char *s)
+{
+	printf("%s: %s\n", s, strerror(errno));
 }
 
 /* intern_printf provides all the functionality needed by all the printf

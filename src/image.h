@@ -1,5 +1,5 @@
 /*
-pcboot - bootable PC demo/game kernel
+256boss - bootable launcher for 256byte intros
 Copyright (C) 2018-2019  John Tsiombikas <nuclear@member.fsf.org>
 
 This program is free software: you can redistribute it and/or modify
@@ -15,27 +15,29 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#ifndef STDLIB_H_
-#define STDLIB_H_
+#ifndef IMAGE_H_
+#define IMAGE_H_
 
-#include <stddef.h>
+struct cmapent {
+	unsigned char r, g, b;
+};
 
-int atoi(const char *str);
-long atol(const char *str);
-long strtol(const char *str, char **endp, int base);
+struct image {
+	int width, height;
+	int bpp;
+	int nchan;
+	int scansz, pitch;
+	int cmap_ncolors;
+	struct cmapent cmap[256];
+	unsigned char *pixels;
+};
 
-void itoa(int val, char *buf, int base);
-void utoa(unsigned int val, char *buf, int base);
+int alloc_image(struct image *img, int x, int y, int bpp);
+int load_image(struct image *img, const char *fname);
+int save_image(struct image *img, const char *fname);
 
-double atof(const char *str);
-double strtod(const char *str, char **endp);
+int cmp_image(struct image *a, struct image *b);
 
-int atexit(void (*func)(void));
+void blit_image(struct image *src, int sx, int sy, int w, int h, struct image *dst, int dx, int dy);
 
-/* defined in malloc.c */
-void *malloc(size_t sz);
-void *calloc(size_t num, size_t sz);
-void *realloc(void *ptr, size_t sz);
-void free(void *ptr);
-
-#endif	/* STDLIB_H_ */
+#endif	/* IMAGE_H_ */

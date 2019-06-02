@@ -1,5 +1,5 @@
 /*
-pcboot - bootable PC demo/game kernel
+256boss - bootable launcher for 256byte intros
 Copyright (C) 2018-2019  John Tsiombikas <nuclear@member.fsf.org>
 
 This program is free software: you can redistribute it and/or modify
@@ -15,27 +15,14 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#ifndef STDLIB_H_
-#define STDLIB_H_
+#include <setjmp.h>
 
-#include <stddef.h>
+int setjmp(jmp_buf buf)
+{
+	return __builtin_setjmp(buf);
+}
 
-int atoi(const char *str);
-long atol(const char *str);
-long strtol(const char *str, char **endp, int base);
-
-void itoa(int val, char *buf, int base);
-void utoa(unsigned int val, char *buf, int base);
-
-double atof(const char *str);
-double strtod(const char *str, char **endp);
-
-int atexit(void (*func)(void));
-
-/* defined in malloc.c */
-void *malloc(size_t sz);
-void *calloc(size_t num, size_t sz);
-void *realloc(void *ptr, size_t sz);
-void free(void *ptr);
-
-#endif	/* STDLIB_H_ */
+void longjmp(jmp_buf buf, int val)
+{
+	__builtin_longjmp(buf, 1);
+}

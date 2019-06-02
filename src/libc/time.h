@@ -15,27 +15,23 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#ifndef STDLIB_H_
-#define STDLIB_H_
+#ifndef TIME_H_
+#define TIME_H_
 
-#include <stddef.h>
+typedef long time_t;
 
-int atoi(const char *str);
-long atol(const char *str);
-long strtol(const char *str, char **endp, int base);
+struct tm {
+	int tm_sec;
+	int tm_min;
+	int tm_hour;
+	int tm_mday;
+	int tm_mon;
+	int tm_year;
+	int tm_wday;
+	int tm_yday;
+	int tm_isdst;
+};
 
-void itoa(int val, char *buf, int base);
-void utoa(unsigned int val, char *buf, int base);
+/* TODO: more */
 
-double atof(const char *str);
-double strtod(const char *str, char **endp);
-
-int atexit(void (*func)(void));
-
-/* defined in malloc.c */
-void *malloc(size_t sz);
-void *calloc(size_t num, size_t sz);
-void *realloc(void *ptr, size_t sz);
-void free(void *ptr);
-
-#endif	/* STDLIB_H_ */
+#endif	/* TIME_H_ */

@@ -22,6 +22,7 @@ memset:
 	push %edi
 
 	mov 8(%ebp), %edi
+	push %edi
 	mov 12(%ebp), %al
 	mov %al, %ah
 	mov %ax, %cx
@@ -61,6 +62,7 @@ mspost2:stosb
 mspost1:stosb
 
 msdone:
+	pop %eax
 	pop %edi
 	pop %ebp
 	ret
@@ -75,6 +77,7 @@ memset16:
 	push %edi
 
 	mov 8(%ebp), %edi
+	push %edi
 	mov 12(%ebp), %ax
 	shl $16, %eax
 	mov 12(%ebp), %ax
@@ -127,7 +130,7 @@ ms16main:
 	jz ms16done
 	stosw
 ms16done:
-
+	pop %eax
 	pop %edi
 	pop %ebp
 	ret

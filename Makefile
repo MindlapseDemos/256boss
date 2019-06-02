@@ -1,7 +1,9 @@
 csrc = $(wildcard src/*.c) \
 	   $(wildcard src/libc/*.c) \
 	   $(wildcard src/ui/*.c) \
-	   $(wildcard src/dtx/*.c)
+	   $(wildcard src/dtx/*.c) \
+	   $(wildcard libs/zlib/*.c) \
+	   $(wildcard libs/libpng/*.c)
 ssrc = $(wildcard src/*.s) \
 	   $(wildcard src/libc/*.s) \
 	   $(wildcard src/boot/*.s)
@@ -14,7 +16,7 @@ bin = 256boss.bin
 warn = -pedantic -Wall
 #opt = -O2
 dbg = -g
-inc = -Isrc -Isrc/libc -Isrc/dtx
+inc = -Isrc -Isrc/libc -Isrc/dtx -Ilibs/libpng -Ilibs/zlib
 def = -DNO_FREETYPE -DNO_OPENGL
 gccopt = -fno-pic -ffreestanding -nostdinc -fno-builtin -ffast-math
 
