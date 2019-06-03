@@ -230,10 +230,6 @@ run_com_return:
 	nop
 	mov saved_sp, %sp
 
-	# XXX remove later, handle video mode restore in C
-	mov $3, %ax
-	int $0x10
-
 	iret 
 
 saved_sp: .short 0

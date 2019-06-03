@@ -28,6 +28,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "contty.h"
 #include "panic.h"
 #include "comloader.h"
+#include "video.h"
 
 static void print_prompt(void);
 
@@ -219,6 +220,7 @@ void splash_screen(void);
 static int cmd_start(int argc, char **argv)
 {
 	splash_screen();
+	con_clear();
 	return 0;
 }
 
@@ -359,5 +361,8 @@ static int cmd_run(int argc, char **argv)
 	if(run_com_binary() == -1) {
 		return -1;
 	}
+
+	set_vga_mode(3);
+	con_clear();
 	return 0;
 }
