@@ -25,6 +25,7 @@ typedef uint32_t size_t;
 typedef int wchar_t;
 
 typedef int32_t ptrdiff_t;
+typedef uint32_t intptr_t;
 
 #define NULL	0
 

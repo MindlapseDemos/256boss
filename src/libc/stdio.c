@@ -21,6 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <errno.h>
 #include "contty.h"
 #include "serial.h"
+#include "panic.h"
 
 enum {
 	OUT_DEF,

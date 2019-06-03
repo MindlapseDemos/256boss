@@ -24,6 +24,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "keyb.h"
 #include "psaux.h"
 #include "timer.h"
+#include "rtc.h"
 #include "contty.h"
 #include "video.h"
 #include "audio.h"
@@ -56,6 +57,7 @@ void kmain(void)
 
 	/* initialize the timer */
 	init_timer();
+	init_rtc();
 
 	/*audio_init();*/
 
@@ -65,9 +67,11 @@ void kmain(void)
 
 	mount_boot_fs();
 
+#ifdef AUTOSTART_GUI
 	if(!kb_isdown(KB_F8)) {
 		splash_screen();
 	}
+#endif
 
 	/* debug shell. we end up here if we hold down F8 during startup */
 	sh_init();

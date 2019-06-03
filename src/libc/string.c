@@ -17,6 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include <string.h>
 #include <ctype.h>
+#include <stddef.h>
 
 void *memmove(void *dest, const void *src, size_t n)
 {
@@ -41,6 +42,49 @@ void *memmove(void *dest, const void *src, size_t n)
 	}
 
 	return dest;
+}
+
+int memcmp(void *aptr, void *bptr, size_t n)
+{
+	int i, startoffs, diff;
+	uint32_t *a32, *b32;
+	unsigned char *a = aptr;
+	unsigned char *b = bptr;
+
+	a32 = (uint32_t*)((intptr_t)(a + 3) & 0xfffffffc);
+	b32 = (uint32_t*)((intptr_t)(b + 3) & 0xfffffffc);
+
+	/* if both are aligned the same way... */
+	if((startoffs = (unsigned char*)a32 - a) == (unsigned char*)b32 - b) {
+		/* catch-up to the 32bit alignment */
+		for(i=0; i<startoffs; i++) {
+			if((diff = *a++ - *b++) != 0 || --n <= 0) {
+				return diff;
+			}
+		}
+
+		/* compare 32bit at once */
+		while(n >= 4) {
+			if(*a32 != *b32) break;
+			a32++;
+			b32++;
+			n -= 4;
+		}
+
+		/* update byte pointers to contine with the tail */
+		a = (unsigned char*)a32;
+		b = (unsigned char*)b32;
+	}
+
+	/* we're here both for the tail-end of same-alignment buffers, or for the
+	 * whole length of mis-aligned buffers.
+	 */
+	while(n-- > 0) {
+		if((diff = *a++ - *b++) != 0) {
+			return diff;
+		}
+	}
+	return 0;
 }
 
 size_t strlen(const char *s)
@@ -143,6 +187,12 @@ char *strcpy(char *dest, const char *src)
 {
 	char *dptr = dest;
 	while((*dptr++ = *src++));
+	return dest;
+}
+
+char *strcat(char *dest, const char *src)
+{
+	strcpy(dest + strlen(dest), src);
 	return dest;
 }
 

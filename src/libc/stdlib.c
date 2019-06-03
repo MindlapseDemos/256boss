@@ -195,3 +195,8 @@ int atexit(void (*func)(void))
 	/* there's no concept of exiting at the moment, so this does nothing */
 	return 0;
 }
+
+void abort(void)
+{
+	panic("Aborted\n");
+}

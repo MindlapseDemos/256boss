@@ -78,4 +78,12 @@ size_t fwrite(const void *buf, size_t size, size_t count, FILE *fp);
 int fgetc(FILE *fp);
 char *fgets(char *buf, int size, FILE *fp);
 
+int fputc(int c, FILE *fp);
+
+int fflush(FILE *fp);
+
+int feof(FILE *fp);
+int ferror(FILE *fp);
+void clearerr(FILE *fp);
+
 #endif	/* STDIO_H_ */

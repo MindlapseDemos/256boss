@@ -12,6 +12,7 @@
  * Transformations that are used in both reading and writing are
  * in pngtrans.c.
  */
+#include <math.h>
 
 #define PNG_INTERNAL
 #include "png.h"

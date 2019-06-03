@@ -1,6 +1,6 @@
 /*
 pcboot - bootable PC demo/game kernel
-Copyright (C) 2018  John Tsiombikas <nuclear@member.fsf.org>
+Copyright (C) 2018-2019  John Tsiombikas <nuclear@member.fsf.org>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -15,15 +15,14 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#ifndef PCBOOT_CONFIG_H_
-#define PCBOOT_CONFIG_H_
+#ifndef _RTC_H_
+#define _RTC_H_
 
-/* frequency of generated timer ticks in hertz */
-#define TICK_FREQ_HZ		250
+#include <time.h>
 
-#define CON_TEXTMODE
-#define CON_SERIAL
+/* the time read from rtc during init */
+time_t start_time;
 
-#undef AUTOSTART_GUI
+void init_rtc(void);
 
-#endif	/* PCBOOT_CONFIG_H_ */
+#endif	/* _RTC_H_ */

@@ -20,6 +20,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <stddef.h>
 
+#define abs(x)	__builtin_abs(x)
+
 int atoi(const char *str);
 long atol(const char *str);
 long strtol(const char *str, char **endp, int base);
@@ -31,6 +33,8 @@ double atof(const char *str);
 double strtod(const char *str, char **endp);
 
 int atexit(void (*func)(void));
+
+void abort(void);
 
 /* defined in malloc.c */
 void *malloc(size_t sz);

@@ -17,7 +17,7 @@ warn = -pedantic -Wall
 #opt = -O2
 dbg = -g
 inc = -Isrc -Isrc/libc -Isrc/dtx -Ilibs/libpng -Ilibs/zlib
-def = -DNO_FREETYPE -DNO_OPENGL
+def = -DNO_FREETYPE -DNO_OPENGL -DNO_GZCOMPRESS
 gccopt = -fno-pic -ffreestanding -nostdinc -fno-builtin -ffast-math
 
 CFLAGS = $(ccarch) -march=i386 $(warn) $(opt) $(dbg) $(gccopt) $(inc) $(def)
