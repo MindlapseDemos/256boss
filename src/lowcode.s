@@ -80,6 +80,8 @@ int86:
 	mov %ax, %ds
 	mov %ax, %es
 	mov %ax, %ss
+	mov %ax, %fs
+	mov %ax, %gs
 	nop
 
 	# load registers from the int86regs struct
@@ -124,6 +126,8 @@ int_op:	int $0
 	mov %ax, %ds
 	mov %ax, %es
 	mov %ax, %ss
+	mov %ax, %fs
+	mov %ax, %gs
 	nop
 
 	# point the esp to our regs struct, to fill it with pusha/pushf
