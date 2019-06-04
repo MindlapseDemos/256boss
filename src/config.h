@@ -24,6 +24,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define CON_TEXTMODE
 #define CON_SERIAL
 
-#undef AUTOSTART_GUI
+#define AUTOSTART_GUI
 
 #endif	/* PCBOOT_CONFIG_H_ */
