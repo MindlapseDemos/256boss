@@ -243,7 +243,7 @@ static int intern_printf(int out, char *buf, size_t sz, const char *fmt, va_list
 						bwrite(out, BUF(buf), SZ(sz), (char*)&padc, 1);
 						cnum++;
 					}
-					if(left_align) {
+					if(!left_align) {
 						if(!unsig && sign && num >= 0) {
 							bwrite(out, BUF(buf), SZ(sz), "+", 1);
 							cnum++;
