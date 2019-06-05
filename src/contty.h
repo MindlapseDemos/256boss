@@ -23,6 +23,18 @@ enum {
 	CON_CURSOR_BLOCK
 };
 
+enum {
+	CON_BLACK,
+	CON_BLUE,
+	CON_GREEN,
+	CON_CYAN,
+	CON_RED,
+	CON_MAGENTA,
+	CON_YELLOW,
+	CON_WHITE,
+};
+#define CON_BRIGHT	0x80
+
 int con_init(void);
 void con_show_cursor(int show);
 void con_cursor(int x, int y);
@@ -33,6 +45,6 @@ void con_clear(void);
 void con_putchar(int c);
 
 void con_putchar_scr(int x, int y, int c);
-void con_printf(int x, int y, const char *fmt, ...);
+int con_printf(int x, int y, const char *fmt, ...);
 
 #endif	/* CONTTY_H_ */

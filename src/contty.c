@@ -114,7 +114,7 @@ void con_curattr(int shape, int blink)
 
 void con_fgcolor(int c)
 {
-	txattr = (txattr & 0xf0) | c;
+	txattr = (txattr & 0x70) | c;
 }
 
 void con_bgcolor(int c)
@@ -193,7 +193,7 @@ void con_putchar_scr(int x, int y, int c)
 #endif
 }
 
-void con_printf(int x, int y, const char *fmt, ...)
+int con_printf(int x, int y, const char *fmt, ...)
 {
 #ifdef CON_TEXTMODE
 	va_list ap;
@@ -207,6 +207,9 @@ void con_printf(int x, int y, const char *fmt, ...)
 	while(*ptr && x < 80) {
 		con_putchar_scr(x++, y, *ptr++);
 	}
+	return ptr - buf;
+#else
+	return 0;
 #endif
 }
 

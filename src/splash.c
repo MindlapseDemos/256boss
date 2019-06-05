@@ -24,6 +24,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "keyb.h"
 #include "video.h"
 #include "image.h"
+#include "tui/textui.h"
 
 #define DATA_PATH	"/.data/"
 
@@ -63,6 +64,10 @@ void splash_screen(void)
 		halt_cpu();
 		while((c = kb_getkey()) >= 0) {
 			switch(c) {
+			case KB_F2:
+				textui();
+				goto end;
+
 			case KB_F8:
 				goto end;
 			}

@@ -1,5 +1,6 @@
 csrc = $(wildcard src/*.c) \
 	   $(wildcard src/libc/*.c) \
+	   $(wildcard src/tui/*.c) \
 	   $(wildcard src/ui/*.c) \
 	   $(wildcard src/dtx/*.c) \
 	   $(wildcard libs/zlib/*.c) \
