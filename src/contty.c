@@ -114,12 +114,22 @@ void con_curattr(int shape, int blink)
 
 void con_fgcolor(int c)
 {
-	txattr = (txattr & 0x70) | c;
+	txattr = (txattr & 0xf0) | c;
 }
 
 void con_bgcolor(int c)
 {
 	txattr = (txattr & 0x0f) | (c << 4);
+}
+
+void con_setattr(unsigned char attr)
+{
+	txattr = attr;
+}
+
+unsigned char con_getattr(void)
+{
+	return txattr;
 }
 
 void con_clear(void)

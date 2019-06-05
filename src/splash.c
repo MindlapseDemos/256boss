@@ -24,6 +24,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "keyb.h"
 #include "video.h"
 #include "image.h"
+#include "contty.h"
 #include "tui/textui.h"
 
 #define DATA_PATH	"/.data/"
@@ -31,6 +32,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 static void setup_video(void);
 static void draw(void);
 
+static unsigned char *fb;
 static unsigned char *vmem = (unsigned char*)0xa0000;
 static struct image topimg;
 
@@ -43,8 +45,14 @@ void splash_screen(void)
 	int i;
 	unsigned char *pptr;
 
+	if(!(fb = malloc(64000))) {
+		printf("failed to allocate back buffer\n");
+		return;
+	}
+
 	if(load_image(&topimg, DATA_PATH "splashtop.png") == -1 || topimg.bpp != 8) {
 		printf("failed to load splashtop.png\n");
+		free(fb);
 		return;
 	}
 	if(topimg.cmap_ncolors > CMAP_IMG_SIZE) {
@@ -73,17 +81,18 @@ void splash_screen(void)
 			}
 		}
 
-		wait_vsync();
 		draw();
 	}
 
 end:
 	set_vga_mode(3);
+	free(fb);
 }
 
 static void setup_video(void)
 {
 	int i;
+	con_clear();	/* this has the side-effect of resetting CRTC scroll regs */
 	set_vga_mode(0x13);
 
 	for(i=0; i<CMAP_UI_SIZE; i++) {
@@ -98,7 +107,11 @@ static void setup_video(void)
 
 static void draw(void)
 {
-	memset(vmem, 0, 64000);
+	int imgbytes = topimg.scansz * topimg.height;
 
-	memcpy(vmem, topimg.pixels, topimg.scansz * topimg.height);
+	memset(fb + imgbytes, 0, 64000 - imgbytes);
+	memcpy(fb, topimg.pixels, imgbytes);
+
+	wait_vsync();
+	memcpy(vmem, fb, 64000);
 }

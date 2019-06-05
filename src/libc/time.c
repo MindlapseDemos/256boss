@@ -126,6 +126,18 @@ struct tm *gmtime_r(time_t *tp, struct tm *tm)
 	return tm;
 }
 
+struct tm *localtime(time_t *tp)
+{
+	static struct tm tm;
+	return localtime_r(tp, &tm);
+}
+
+struct tm *localtime_r(time_t *tp, struct tm *tm)
+{
+	time_t t = *tp + timezone;
+	return gmtime_r(&t, tm);
+}
+
 int day_of_year(int year, int mon, int day)
 {
 	int i, yday, leap;
