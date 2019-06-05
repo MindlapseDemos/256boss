@@ -21,14 +21,15 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "keyb.h"
 #include "asmops.h"
 
+static void draw_topbar(void);
+
 int textui(void)
 {
 	set_vga_mode(3);
 	con_show_cursor(0);
 	con_clear();
 
-	con_bgcolor(CON_BLUE);
-	con_printf(0, 0, "%80s", "256boss");
+	draw_topbar();
 
 	for(;;) {
 		int c;
@@ -44,4 +45,10 @@ int textui(void)
 
 end:
 	return 0;
+}
+
+static void draw_topbar(void)
+{
+	con_bgcolor(CON_BLUE);
+	con_printf(0, 0, "%80s", "256boss");
 }

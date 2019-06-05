@@ -174,9 +174,10 @@ static int intern_printf(int out, char *buf, size_t sz, const char *fmt, va_list
 	int fwidth = 0;
 	int padc = ' ';
 	int sign = 0;
-	int left_align = 0;	/* not implemented yet */
+	int left_align = 0;
 	int hex_caps = 0;
 	int unsig = 0;
+	int num, unum;
 
 	while(*fmt) {
 		if(*fmt == '%') {
@@ -215,9 +216,11 @@ static int intern_printf(int out, char *buf, size_t sz, const char *fmt, va_list
 				case 'd':
 				case 'i':
 					if(unsig) {
-						utoa(va_arg(ap, unsigned int), conv_buf, base);
+						unum = va_arg(ap, unsigned int);
+						utoa(unum, conv_buf, base);
 					} else {
-						itoa(va_arg(ap, int), conv_buf, base);
+						num = va_arg(ap, int);
+						itoa(num, conv_buf, base);
 					}
 					if(hex_caps) {
 						for(i=0; conv_buf[i]; i++) {
@@ -226,13 +229,28 @@ static int intern_printf(int out, char *buf, size_t sz, const char *fmt, va_list
 					}
 
 					slen = strlen(conv_buf);
+
+					if(left_align) {
+						if(!unsig && sign && num >= 0) {
+							bwrite(out, BUF(buf), SZ(sz), "+", 1);
+							cnum++;
+						}
+						bwrite(out, BUF(buf), SZ(sz), conv_buf, slen);
+						cnum += slen;
+						padc = ' ';
+					}
 					for(i=slen; i<fwidth; i++) {
 						bwrite(out, BUF(buf), SZ(sz), (char*)&padc, 1);
 						cnum++;
 					}
-
-					bwrite(out, BUF(buf), SZ(sz), conv_buf, slen);
-					cnum += slen;
+					if(left_align) {
+						if(!unsig && sign && num >= 0) {
+							bwrite(out, BUF(buf), SZ(sz), "+", 1);
+							cnum++;
+						}
+						bwrite(out, BUF(buf), SZ(sz), conv_buf, slen);
+						cnum += slen;
+					}
 					break;
 
 				case 'c':
@@ -247,12 +265,19 @@ static int intern_printf(int out, char *buf, size_t sz, const char *fmt, va_list
 					str = va_arg(ap, char*);
 					slen = strlen(str);
 
+					if(left_align) {
+						bwrite(out, BUF(buf), SZ(sz), str, slen);
+						cnum += slen;
+						padc = ' ';
+					}
 					for(i=slen; i<fwidth; i++) {
 						bwrite(out, BUF(buf), SZ(sz), (char*)&padc, 1);
 						cnum++;
 					}
-					bwrite(out, BUF(buf), SZ(sz), str, slen);
-					cnum += slen;
+					if(!left_align) {
+						bwrite(out, BUF(buf), SZ(sz), str, slen);
+						cnum += slen;
+					}
 					break;
 
 				case 'n':
@@ -335,10 +360,9 @@ static void bwrite(int out, char *buf, size_t buf_sz, char *str, int sz)
 	int i;
 
 	if(out == OUT_BUF) {
-		if(buf_sz && buf_sz <= sz) sz = buf_sz - 1;
-		memcpy(buf, str, sz);
-
+		if(buf_sz && buf_sz <= sz) sz = buf_sz;
 		buf[sz] = 0;
+		memcpy(buf, str, sz);
 	} else {
 		switch(out) {
 		case OUT_DEF:
