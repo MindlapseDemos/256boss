@@ -31,4 +31,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define UINT_MAX	0xffffffff
 #define ULONG_MAX	0xffffffff
 
+#define PATH_MAX	256
+
 #endif	/* LIMITS_H_ */

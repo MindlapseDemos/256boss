@@ -15,10 +15,24 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
+#include <string.h>
+#include <errno.h>
 #include "unistd.h"
 #include "fs.h"
 
 int chdir(const char *path)
 {
 	return fs_chdir(path);
+}
+
+char *getcwd(char *buf, int sz)
+{
+	char *cwd = fs_getcwd();
+	int len = strlen(cwd);
+	if(len + 1 > sz) {
+		errno = ERANGE;
+		return 0;
+	}
+	memcpy(buf, cwd, len + 1);
+	return buf;
 }

@@ -191,7 +191,7 @@ static uint32_t read_fat(struct fatfs *fatfs, uint32_t addr);
 static int32_t next_cluster(struct fatfs *fatfs, int32_t addr);
 static int32_t find_cluster(struct fatfs *fatfs, int count, int32_t clust);
 
-static void dbg_printdir(struct fat_dirent *dir, int max_entries);
+/* static void dbg_printdir(struct fat_dirent *dir, int max_entries); */
 static void clean_trailws(char *s);
 
 static struct fs_operations fs_fat_ops = {
@@ -384,7 +384,18 @@ static struct fs_node *lookup(struct filesys *fs, const char *path)
 		}
 		fatdent = dent->data;
 
-		newdir = fatdent->attr == ATTR_DIR ? load_dir(fatfs, fatdent) : 0;
+		if((fatdent->first_cluster_low | fatdent->first_cluster_high) == 0) {
+			if(fatdent->attr == ATTR_DIR) {
+				/* ".." entries back to the root directory seem to have a 0
+				 * cluster address as a special case
+				 */
+				newdir = fatfs->rootdir;
+			} else {
+				return 0;	/* but we can't have 0-address files (right?) */
+			}
+		} else {
+			newdir = fatdent->attr == ATTR_DIR ? load_dir(fatfs, fatdent) : 0;
+		}
 		if(dir != fatfs->rootdir && dir != cwdnode->data) {
 			free_dir(dir);
 		}
@@ -880,6 +891,7 @@ static int32_t find_cluster(struct fatfs *fatfs, int count, int32_t clust)
 	return clust;
 }
 
+/*
 static void dbg_printdir(struct fat_dirent *dir, int max_entries)
 {
 	char name[MAX_NAME];
@@ -898,6 +910,7 @@ static void dbg_printdir(struct fat_dirent *dir, int max_entries)
 		dir++;
 	}
 }
+*/
 
 static void clean_trailws(char *s)
 {

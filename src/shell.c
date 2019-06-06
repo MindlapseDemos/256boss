@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <limits.h>
 #include <assert.h>
 #include <unistd.h>
 #include <dirent.h>
@@ -38,6 +39,7 @@ static int cmd_clear(int argc, char **argv);
 static int cmd_help(int argc, char **argv);
 
 static int cmd_chdir(int argc, char **argv);
+static int cmd_pwd(int argc, char **argv);
 static int cmd_list(int argc, char **argv);
 static int cmd_cat(int argc, char **argv);
 
@@ -96,6 +98,7 @@ static struct {
 } commands[] = {
 	{"start", cmd_start},
 	{"cd", cmd_chdir},
+	{"pwd", cmd_pwd},
 	{"ls", cmd_list},
 	{"cat", cmd_cat},
 	{"clear", cmd_clear},
@@ -249,6 +252,13 @@ static int cmd_chdir(int argc, char **argv)
 		return -1;
 	}
 	return chdir(argv[1]);
+}
+
+static int cmd_pwd(int argc, char **argv)
+{
+	char buf[PATH_MAX];
+	printf("%s\n", getcwd(buf, sizeof buf));
+	return 0;
 }
 
 static void list_dir(DIR *dir)

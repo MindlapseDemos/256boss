@@ -19,5 +19,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define UNISTD_H_
 
 int chdir(const char *path);
+char *getcwd(char *buf, int sz);
 
 #endif	/* UNISTD_H_ */

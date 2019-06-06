@@ -16,7 +16,11 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <assert.h>
 #include "fs.h"
+#include "panic.h"
 
 struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size);
 
@@ -38,8 +42,9 @@ int fs_mount(int dev, uint64_t start, uint64_t size, struct fs_node *parent)
 		if((fs = createfs[i](dev, start, size))) {
 			if(!parent) {
 				rootfs = fs;
+
+				fs_chdir("/");
 			}
-			fs_chdir("/");
 			return 0;
 		}
 	}
@@ -48,6 +53,8 @@ int fs_mount(int dev, uint64_t start, uint64_t size, struct fs_node *parent)
 	return -1;
 }
 
+static char cwdpath[1024];
+static char *cwdpath_end = cwdpath;
 
 int fs_chdir(const char *path)
 {
@@ -55,6 +62,10 @@ int fs_chdir(const char *path)
 
 	if(!path || !*path) {
 		return -1;
+	}
+
+	if(strcmp(path, ".") == 0) {
+		return 0;
 	}
 
 	if(!(node = fs_open(path))) {
@@ -65,9 +76,36 @@ int fs_chdir(const char *path)
 		return -1;
 	}
 
+	if(strcmp(path, "..") == 0) {
+		assert(cwdpath_end > cwdpath + 1);
+		while(cwdpath_end > cwdpath && *--cwdpath_end != '/');
+		if(cwdpath_end == cwdpath) cwdpath_end++;
+		*cwdpath_end = 0;
+	} else {
+		int len = strlen(path);
+		if(cwdpath_end - cwdpath + len > sizeof cwdpath) {
+			panic("fs_chdir: path too long: %s\n", path);
+		}
+		if(path[0] == '/') {
+			memcpy(cwdpath, path, len + 1);
+			cwdpath_end = cwdpath + len;
+		} else {
+			if(cwdpath_end > cwdpath + 1) {
+				*cwdpath_end++ = '/';
+			}
+			memcpy(cwdpath_end, path, len + 1);
+			cwdpath_end += len;
+		}
+	}
+
 	fs_close(cwdnode);
 	cwdnode = node;
 	return 0;
+}
+
+char *fs_getcwd(void)
+{
+	return cwdpath;
 }
 
 struct fs_node *fs_open(const char *path)
