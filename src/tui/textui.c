@@ -57,9 +57,12 @@ static uint16_t *vmem = (uint16_t*)0xb8000;
 
 int textui(void)
 {
+	unsigned char orig_attr;
+
 	set_vga_mode(3);
+	orig_attr = con_getattr();
 	con_show_cursor(0);
-	con_clear();
+	con_clear();	/* to reset scrolling */
 
 	memset16(vmem, CHAR_ATTR(G_CHECKER, ATTR_BG), NCOLS * NROWS);
 
@@ -82,6 +85,7 @@ int textui(void)
 	}
 
 end:
+	con_setattr(orig_attr);
 	con_clear();
 	con_show_cursor(1);
 	return 0;
