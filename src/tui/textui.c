@@ -105,6 +105,7 @@ restart:
 		halt_cpu();
 		while((c = kb_getkey()) >= 0) {
 			switch(c) {
+			case 's':
 			case KB_DOWN:
 				if(cursel < num_entries - 1) {
 					cursel++;
@@ -116,6 +117,7 @@ restart:
 				}
 				break;
 
+			case 'w':
 			case KB_UP:
 				if(cursel > 0) {
 					cursel--;
@@ -228,7 +230,7 @@ static void draw_dirview(int x, int y, int w, int h)
 	for(i=0; i<nlines; i++) {
 		unsigned char attr = eptr->type == DT_DIR ? attr_dir : attr_file;
 		if(eidx == cursel) {
-			attr = (attr & 0xf) | (LTBLUE << 4);
+			attr = (attr & 0xf) | (BROWN << 4);
 		}
 		con_setattr(attr);
 
