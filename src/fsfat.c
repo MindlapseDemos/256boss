@@ -677,6 +677,7 @@ static void parse_dir_entries(struct fat_dir *dir)
 				}
 				strcpy(eptr->name, entname);
 				eptr->data = dent;
+				eptr->type = dent->attr == ATTR_DIR ? FSNODE_DIR : FSNODE_FILE;
 				eptr++;
 			}
 		}

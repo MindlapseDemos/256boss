@@ -89,5 +89,6 @@ struct dirent *readdir(DIR *dir)
 	}
 
 	strcpy(dir->dent.d_name, fsdent->name);
+	dir->dent.d_type = fsdent->type == FSNODE_DIR ? DT_DIR : DT_REG;
 	return &dir->dent;
 }

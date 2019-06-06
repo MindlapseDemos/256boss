@@ -64,6 +64,7 @@ struct fs_node {
 struct fs_dirent {
 	char *name;
 	void *data;
+	int type;
 };
 
 struct filesys *rootfs;

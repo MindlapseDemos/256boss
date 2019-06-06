@@ -20,8 +20,15 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 typedef struct DIR DIR;
 
+enum {
+	DT_UNKNOWN = 0,
+	DT_DIR = 4,
+	DT_REG = 8
+};
+
 struct dirent {
 	char d_name[256];
+	unsigned char d_type;
 };
 
 DIR *opendir(const char *path);

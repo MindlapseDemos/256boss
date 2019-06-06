@@ -17,15 +17,22 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include <string.h>
 #include <time.h>
+#include <limits.h>
+#include <unistd.h>
 #include <dirent.h>
 #include "textui.h"
 #include "video.h"
 #include "contty.h"
 #include "keyb.h"
+#include "comloader.h"
 #include "asmops.h"
+#include "panic.h"
 
 #define NCOLS	80
 #define NROWS	25
+
+#define FSVIEW_COLS	60
+#define FSVIEW_ROWS	23
 
 #define CHAR_COL(c, fg, bg) \
 	((uint16_t)(c) | ((uint16_t)(fg) << 8) | ((uint16_t)(bg) << 12))
@@ -44,6 +51,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define COL_FSVIEW_FILE		LTGREY
 #define COL_FSVIEW_DIR		WHITE
 
+struct dir_entry {
+	char *name;
+	int type;
+};
+
+
 static void draw_topbar(void);
 static void draw_clock(void);
 static void draw_statusbar(void);
@@ -52,23 +65,39 @@ static void draw_dirview(int x, int y, int w, int h);
 static void fill_rect(int x, int y, int w, int h, uint16_t c);
 static void draw_frame(const char *title, int x, int y, int w, int h, unsigned char fg, unsigned char bg);
 
+static void load_cur_dir(void);
+
 static uint16_t *vmem = (uint16_t*)0xb8000;
+
+static int cursel;
+static int scroll;
+static int num_vis;
+
+static struct dir_entry *entries;
+static int num_entries;
+
+static int dirty;
 
 
 int textui(void)
 {
 	unsigned char orig_attr;
 
+restart:
 	set_vga_mode(3);
 	orig_attr = con_getattr();
 	con_show_cursor(0);
 	con_clear();	/* to reset scrolling */
 
+	load_cur_dir();
+
 	memset16(vmem, CHAR_ATTR(G_CHECKER, ATTR_BG), NCOLS * NROWS);
 
 	draw_topbar();
-	draw_dirview(2, 1, 60, 23);
+	draw_dirview(2, 1, FSVIEW_COLS, FSVIEW_ROWS);
 	draw_statusbar();
+
+	num_vis = FSVIEW_ROWS - 2;
 
 	for(;;) {
 		int c;
@@ -76,11 +105,61 @@ int textui(void)
 		halt_cpu();
 		while((c = kb_getkey()) >= 0) {
 			switch(c) {
+			case KB_DOWN:
+				if(cursel < num_entries - 1) {
+					cursel++;
+					dirty = 1;
+
+					if(cursel - scroll >= num_vis) {
+						scroll++;
+					}
+				}
+				break;
+
+			case KB_UP:
+				if(cursel > 0) {
+					cursel--;
+					dirty = 1;
+
+					if(cursel < scroll) {
+						scroll = cursel;
+					}
+				}
+				break;
+
+			case '\n':
+				if(cursel < num_entries) {
+					if(entries[cursel].type == DT_DIR) {
+						chdir(entries[cursel].name);
+						load_cur_dir();
+						cursel = 0;
+						scroll = 0;
+						dirty = 1;
+					} else {
+						char *ename = entries[cursel].name;
+						if(strcasecmp(ename + strlen(ename) - 4, ".com") == 0) {
+							if(load_com_binary(ename) == 0) {
+								con_setattr(orig_attr);
+								set_vga_mode(3);
+								run_com_binary();
+								goto restart;
+							}
+						} else {
+							/* TODO */
+						}
+					}
+				}
+				break;
+
 			case KB_F8:
 				goto end;
 			}
 		}
 
+		if(dirty) {
+			dirty = 0;
+			draw_dirview(2, 1, 60, 23);
+		}
 		draw_clock();
 	}
 
@@ -121,33 +200,46 @@ static void draw_statusbar(void)
 
 static void draw_dirview(int x, int y, int w, int h)
 {
-	DIR *dir;
-	struct dirent *dent;
-	int curline;
-	int namecol_len, sizecol_len;
-	char buf[80];
+	int i, nlines, max_nlines, row, col;
+	int len, namecol_len, sizecol_len;
+	char buf[PATH_MAX];
 	unsigned char attr_file, attr_dir;
+	struct dir_entry *eptr;
+	int eidx;
 
 	attr_file = ATTR(COL_FSVIEW_FILE, COL_FSVIEW_BG);
 	attr_dir = ATTR(COL_FSVIEW_DIR, COL_FSVIEW_BG);
 
 	sizecol_len = 8;
 	namecol_len = w - sizecol_len;
+	max_nlines = h - 2;
 
 	fill_rect(x, y, w, h, CHAR_COL(' ', COL_FSVIEW_FILE, COL_FSVIEW_BG));
-	draw_frame("foo", x, y, w, h, COL_FSVIEW_FRM, COL_FSVIEW_BG);
+	draw_frame(getcwd(buf, PATH_MAX), x, y, w, h, COL_FSVIEW_FRM, COL_FSVIEW_BG);
 
-	if(!(dir = opendir("."))) {
-		return;
+	nlines = num_entries - scroll;
+	if(nlines > max_nlines) {
+		nlines = max_nlines;
 	}
 
-	curline = y + 1;
-	while((dent = readdir(dir)) && curline < y + h - 1) {
-		con_setattr(attr_file);
-		con_printf(x + 1, curline, "%s", dent->d_name);
-		curline++;
+	eidx = scroll;
+	eptr = entries + scroll;
+
+	for(i=0; i<nlines; i++) {
+		unsigned char attr = eptr->type == DT_DIR ? attr_dir : attr_file;
+		if(eidx == cursel) {
+			attr = (attr & 0xf) | (LTBLUE << 4);
+		}
+		con_setattr(attr);
+
+		col = x + 1;
+		row = y + 1 + i;
+		len = con_printf(col, row, "%s", eptr->name);
+		memset16(vmem + row * NCOLS + col + len, CHAR_ATTR(' ', attr), w - len - 2);
+
+		eidx++;
+		eptr++;
 	}
-	closedir(dir);
 }
 
 static void fill_rect(int x, int y, int w, int h, uint16_t c)
@@ -200,4 +292,45 @@ static void draw_frame(const char *title, int x, int y, int w, int h, unsigned c
 	ptr[0] = CHAR_ATTR(G_LL_CORNER, attr);
 	ptr[w - 1] = CHAR_ATTR(G_LR_CORNER, attr);
 	memset16(ptr + 1, CHAR_ATTR(G_HLINE, attr), w - 2);
+}
+
+static void load_cur_dir(void)
+{
+	int count;
+	DIR *dir;
+	struct dirent *dent;
+	struct dir_entry *de;
+
+	if(!(dir = opendir("."))) {
+		return;
+	}
+
+	count = 0;
+	while((dent = readdir(dir))) {
+		if(strcmp(dent->d_name, ".") == 0) continue;
+		count++;
+	}
+	rewinddir(dir);
+
+	if(!(de = malloc(count * sizeof *de))) {
+		panic("Failed to allocate directory entries array");
+	}
+
+	free(entries);
+	entries = de;
+	num_entries = count;
+
+	while((dent = readdir(dir))) {
+		if(strcmp(dent->d_name, ".") == 0) continue;
+		if(!(de->name = malloc(strlen(dent->d_name) + 1))) {
+			panic("failed to allocate directory entry name");
+		}
+		strcpy(de->name, dent->d_name);
+		de->type = dent->d_type;
+		de++;
+	}
+
+	/* TODO sort */
+
+	closedir(dir);
 }

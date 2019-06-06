@@ -42,6 +42,17 @@ static int scantbl[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0									/* 70 - 7f */
 };
 
+static int scantbl_ext[] = {
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			/* 0 - f */
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '\r', KB_RCTRL, 0, 0,			/* 10 - 1f */
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			/* 20 - 2f */
+	0, 0, 0, 0, 0, KB_NUM_MINUS, 0, KB_SYSRQ, KB_RALT, 0, 0, 0, 0, 0, 0, 0,			/* 30 - 3f */
+	0, 0, 0, 0, 0, 0, 0, KB_HOME, KB_UP, KB_PGUP, 0, KB_LEFT, 0, KB_RIGHT, 0, KB_END,	/* 40 - 4f */
+	KB_DOWN, KB_PGDN, KB_INSERT, KB_DEL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			/* 50 - 5f */
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			/* 60 - 6f */
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			/* 70 - 7f */
+};
+
 static void kbintr();
 
 #define BUFSZ	64
@@ -169,12 +180,18 @@ static void kbintr()
 {
 	unsigned char code;
 	int key, press;
+	int ext = 0;
 
 	code = inb(KB_DATA_PORT);
 
-	if(code >= 128) {
+	if(code == 0xe0) {
+		ext = 1;
+		code = inb(KB_DATA_PORT);
+	}
+
+	if(code & 0x80) {
 		press = 0;
-		code -= 128;
+		code &= 0x7f;
 
 		if(num_pressed > 0) {
 			num_pressed--;
@@ -185,7 +202,7 @@ static void kbintr()
 		num_pressed++;
 	}
 
-	key = scantbl[code];
+	key = ext ? scantbl_ext[code] : scantbl[code];
 
 	if(press) {
 		/* append to buffer */
