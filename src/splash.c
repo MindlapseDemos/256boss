@@ -34,7 +34,7 @@ static void draw(void);
 
 static unsigned char *fb;
 static unsigned char *vmem = (unsigned char*)0xa0000;
-static struct image topimg;
+static struct image img;
 
 #define CMAP_UI_SIZE	64
 #define CMAP_IMG_START	CMAP_UI_SIZE
@@ -50,17 +50,17 @@ void splash_screen(void)
 		return;
 	}
 
-	if(load_image(&topimg, DATA_PATH "splashtop.png") == -1 || topimg.bpp != 8) {
-		printf("failed to load splashtop.png\n");
+	if(load_image(&img, DATA_PATH "splash.png") == -1 || img.bpp != 8) {
+		printf("failed to load splash.png\n");
 		free(fb);
 		return;
 	}
-	if(topimg.cmap_ncolors > CMAP_IMG_SIZE) {
-		printf("warning: splashtop.png has %d colors (%d allocated for images)\n",
-				topimg.cmap_ncolors, CMAP_IMG_SIZE);
+	if(img.cmap_ncolors > CMAP_IMG_SIZE) {
+		printf("warning: splash.png has %d colors (%d allocated for images)\n",
+				img.cmap_ncolors, CMAP_IMG_SIZE);
 	}
-	pptr = topimg.pixels;
-	for(i=0; i<topimg.width * topimg.height; i++) {
+	pptr = img.pixels;
+	for(i=0; i<img.width * img.height; i++) {
 		*pptr++ += CMAP_IMG_START;
 	}
 
@@ -100,17 +100,16 @@ static void setup_video(void)
 		set_pal_entry(i, c, c, c);
 	}
 
-	for(i=0; i<topimg.cmap_ncolors; i++) {
-		set_pal_entry(i + CMAP_IMG_START, topimg.cmap[i].r, topimg.cmap[i].g, topimg.cmap[i].b);
+	for(i=0; i<img.cmap_ncolors; i++) {
+		set_pal_entry(i + CMAP_IMG_START, img.cmap[i].r, img.cmap[i].g, img.cmap[i].b);
 	}
 }
 
 static void draw(void)
 {
-	int imgbytes = topimg.scansz * topimg.height;
+	int imgbytes = img.scansz * img.height;
 
-	memset(fb + imgbytes, 0, 64000 - imgbytes);
-	memcpy(fb, topimg.pixels, imgbytes);
+	memcpy(fb, img.pixels, imgbytes);
 
 	wait_vsync();
 	memcpy(vmem, fb, 64000);
