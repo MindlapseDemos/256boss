@@ -21,6 +21,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "intr.h"
 #include "asmops.h"
 #include "kbregs.h"
+#include "kbscan.h"
+#include "panic.h"
 
 #define delay7us() \
 	do { \
@@ -28,30 +30,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 		iodelay(); iodelay(); iodelay(); \
 	} while(0)
 
-/* table with rough translations from set 1 scancodes to ASCII-ish */
-static int scantbl[] = {
-	0, KB_ESC, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b',		/* 0 - e */
-	'\t', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n',			/* f - 1c */
-	KB_LCTRL, 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', '`',				/* 1d - 29 */
-	KB_LSHIFT, '\\', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/', KB_RSHIFT,			/* 2a - 36 */
-	KB_NUM_MUL, KB_LALT, ' ', KB_CAPSLK, KB_F1, KB_F2, KB_F3, KB_F4, KB_F5, KB_F6, KB_F7, KB_F8, KB_F9, KB_F10,			/* 37 - 44 */
-	KB_NUMLK, KB_SCRLK, KB_NUM_7, KB_NUM_8, KB_NUM_9, KB_NUM_MINUS, KB_NUM_4, KB_NUM_5, KB_NUM_6, KB_NUM_PLUS,	/* 45 - 4e */
-	KB_NUM_1, KB_NUM_2, KB_NUM_3, KB_NUM_0, KB_NUM_DOT, KB_SYSRQ, 0, 0, KB_F11, KB_F12,						/* 4d - 58 */
-	0, 0, 0, 0, 0, 0, 0,															/* 59 - 5f */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,									/* 60 - 6f */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0									/* 70 - 7f */
-};
-
-static int scantbl_ext[] = {
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			/* 0 - f */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '\r', KB_RCTRL, 0, 0,			/* 10 - 1f */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			/* 20 - 2f */
-	0, 0, 0, 0, 0, KB_NUM_MINUS, 0, KB_SYSRQ, KB_RALT, 0, 0, 0, 0, 0, 0, 0,			/* 30 - 3f */
-	0, 0, 0, 0, 0, 0, 0, KB_HOME, KB_UP, KB_PGUP, 0, KB_LEFT, 0, KB_RIGHT, 0, KB_END,	/* 40 - 4f */
-	KB_DOWN, KB_PGDN, KB_INSERT, KB_DEL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			/* 50 - 5f */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			/* 60 - 6f */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			/* 70 - 7f */
-};
+static void set_ccb(unsigned char ccb);
+static unsigned char get_ccb(void);
 
 static void kbintr();
 
@@ -64,13 +44,102 @@ static int buf_ridx, buf_widx;
 static unsigned int num_pressed;
 static unsigned char keystate[256];
 
+
 void kb_init(void)
 {
 	buf_ridx = buf_widx = 0;
 	num_pressed = 0;
 	memset(keystate, 0, sizeof keystate);
 
+	/* make sure set1 translation is enabled */
+	kb_set_translate(1);
+
 	interrupt(IRQ_TO_INTR(KB_IRQ), kbintr);
+	kb_intr_enable();
+}
+
+void kb_intr_enable(void)
+{
+	unsigned char ccb = get_ccb();
+	ccb |= KB_CCB_KB_INTREN;
+	set_ccb(ccb);
+}
+
+void kb_intr_disable(void)
+{
+	unsigned char ccb = get_ccb();
+	ccb &= ~KB_CCB_KB_INTREN;
+	set_ccb(ccb);
+}
+
+int kb_setmode(int mode)
+{
+	int iflag = get_intr_flag();
+
+	disable_intr();
+	kb_send_data(0xf0);
+	if(!kb_wait_read() || kb_read_data() != KB_ACK) {
+		set_intr_flag(iflag);
+		return -1;
+	}
+	kb_send_data(mode);
+	if(!kb_wait_read() || kb_read_data() != KB_ACK) {
+		set_intr_flag(iflag);
+		return -1;
+	}
+	set_intr_flag(iflag);
+	return 0;
+}
+
+int kb_getmode(void)
+{
+	int res, iflag = get_intr_flag();
+	disable_intr();
+
+	kb_send_data(0xf0);
+	if(!kb_wait_read() || kb_read_data() != KB_ACK) {
+		goto err;
+	}
+	kb_send_data(0);
+	if(!kb_wait_read() || kb_read_data() != KB_ACK) {
+		goto err;
+	}
+	res = kb_read_data();
+	set_intr_flag(iflag);
+
+	switch(res) {
+	case 0x43:
+		res = 1;
+		break;
+	case 0x41:
+		res = 2;
+		break;
+	case 0x3f:
+		res = 3;
+	default:
+		break;
+	}
+	return res;
+
+err:
+	set_intr_flag(iflag);
+	return -1;
+}
+
+void kb_set_translate(int xlat)
+{
+	unsigned char ccb = get_ccb();
+	if(xlat) {
+		ccb |= KB_CCB_KB_XLAT;
+	} else {
+		ccb &= ~KB_CCB_KB_XLAT;
+	}
+	set_ccb(ccb);
+}
+
+int kb_get_translate(void)
+{
+	return get_ccb() & KB_CCB_KB_XLAT;
 }
 
 int kb_isdown(int key)
@@ -176,17 +245,33 @@ unsigned char kb_read_data(void)
 	return inb(KB_DATA_PORT);
 }
 
+static void set_ccb(unsigned char ccb)
+{
+	kb_send_cmd(KB_CMD_SET_CMDBYTE);
+	kb_send_data(ccb);
+
+	if(kb_wait_read()) {
+		kb_read_data();
+	}
+}
+
+static unsigned char get_ccb(void)
+{
+	kb_send_cmd(KB_CMD_GET_CMDBYTE);
+	return kb_read_data();
+}
+
 static void kbintr()
 {
 	unsigned char code;
 	int key, press;
-	int ext = 0;
+	static int ext = 0;
 
 	code = inb(KB_DATA_PORT);
 
 	if(code == 0xe0) {
 		ext = 1;
-		code = inb(KB_DATA_PORT);
+		return;
 	}
 
 	if(code & 0x80) {
@@ -202,7 +287,8 @@ static void kbintr()
 		num_pressed++;
 	}
 
-	key = ext ? scantbl_ext[code] : scantbl[code];
+	key = ext ? scantbl_set1_ext[code] : scantbl_set1[code];
+	ext = 0;
 
 	if(press) {
 		/* append to buffer */
