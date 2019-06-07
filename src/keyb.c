@@ -74,56 +74,39 @@ void kb_intr_disable(void)
 
 int kb_setmode(int mode)
 {
-	int iflag = get_intr_flag();
-
-	disable_intr();
 	kb_send_data(0xf0);
 	if(!kb_wait_read() || kb_read_data() != KB_ACK) {
-		set_intr_flag(iflag);
 		return -1;
 	}
 	kb_send_data(mode);
 	if(!kb_wait_read() || kb_read_data() != KB_ACK) {
-		set_intr_flag(iflag);
 		return -1;
 	}
-	set_intr_flag(iflag);
 	return 0;
 }
 
 int kb_getmode(void)
 {
-	int res, iflag = get_intr_flag();
-	disable_intr();
+	int mode;
 
 	kb_send_data(0xf0);
 	if(!kb_wait_read() || kb_read_data() != KB_ACK) {
-		goto err;
+		return -1;
 	}
 	kb_send_data(0);
 	if(!kb_wait_read() || kb_read_data() != KB_ACK) {
-		goto err;
+		return -1;
 	}
-	res = kb_read_data();
-	set_intr_flag(iflag);
+	mode = kb_read_data();
 
-	switch(res) {
-	case 0x43:
-		res = 1;
-		break;
-	case 0x41:
-		res = 2;
-		break;
-	case 0x3f:
-		res = 3;
+	switch(mode) {
+	case 0x43: return 1;
+	case 0x41: return 2;
+	case 0x3f: return 3;
 	default:
 		break;
 	}
-	return res;
-
-err:
-	set_intr_flag(iflag);
-	return -1;
+	return mode;
 }
 
 void kb_set_translate(int xlat)
