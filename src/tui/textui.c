@@ -81,6 +81,15 @@ static void init_scr(void)
 	draw_statusbar();
 }
 
+#define INVALIDATE()	\
+	do { \
+		if(fsview.scroll != scr) { \
+			invalidate(-1); \
+		} else { \
+			invalidate(sel); \
+			invalidate(fsview.cursel); \
+		} \
+	} while(0)
 
 int textui(void)
 {
@@ -100,46 +109,31 @@ int textui(void)
 
 		halt_cpu();
 		while((c = kb_getkey()) >= 0) {
+			sel = fsview.cursel;
+			scr = fsview.scroll;
+
 			switch(c) {
 			case KB_DOWN:
-				sel = fsview.cursel;
 				if(fsv_sel_next(&fsview)) {
-					invalidate(sel);
-					invalidate(fsview.cursel);
+					INVALIDATE();
 				}
 				break;
 
 			case KB_UP:
-				sel = fsview.cursel;
 				if(fsv_sel_prev(&fsview)) {
-					invalidate(sel);
-					invalidate(fsview.cursel);
+					INVALIDATE();
 				}
 				break;
 
 			case KB_HOME:
-				sel = fsview.cursel;
-				scr = fsview.scroll;
 				if(fsv_sel_first(&fsview)) {
-					if(fsview.scroll != scr) {
-						invalidate(-1);
-					} else {
-						invalidate(sel);
-						invalidate(fsview.cursel);
-					}
+					INVALIDATE();
 				}
 				break;
 
 			case KB_END:
-				sel = fsview.cursel;
-				scr = fsview.scroll;
 				if(fsv_sel_last(&fsview)) {
-					if(fsview.scroll != scr) {
-						invalidate(-1);
-					} else {
-						invalidate(sel);
-						invalidate(fsview.cursel);
-					}
+					INVALIDATE();
 				}
 				break;
 
