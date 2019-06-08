@@ -57,14 +57,15 @@ struct vector {
 
 int run_com_binary(void)
 {
+	int intr;
 	struct vector *ivt = 0;
 	struct int86regs regs = {0};
 
 	/* Restore original PIC mapping
 	 * otherwise the DOS int21h interrupt and keyboard IRQ1 would conflict
 	 * The pmode mapping is restored at the end of int86
-	 * IF is also restored at the end of int86
 	 */
+	intr = get_intr_flag();
 	disable_intr();
 	prog_pic(8);
 
@@ -77,5 +78,6 @@ int run_com_binary(void)
 	ivt[0x21].offs = (uint32_t)&dos_int21h_entry;
 
 	int86(COMRUN_INT, &regs);
+	set_intr_flag(intr);
 	return regs.eax;
 }
