@@ -32,8 +32,10 @@ struct fsview {
 
 	int cursel;
 
-	int (*openfunc)(const char *path);
+	int (*openfile)(const char *path);
 };
+
+struct fsview fsview;
 
 struct fsview *fsv_alloc(void);
 void fsv_free(struct fsview *fsv);
@@ -47,6 +49,8 @@ int fsv_sel_prev(struct fsview *fsv);
 int fsv_sel_next(struct fsview *fsv);
 int fsv_sel_first(struct fsview *fsv);
 int fsv_sel_last(struct fsview *fsv);
+
+int fsv_keep_vis(struct fsview *fsv, int idx);
 
 int fsv_chdir(struct fsview *fsv, const char *path);
 int fsv_updir(struct fsview *fsv);

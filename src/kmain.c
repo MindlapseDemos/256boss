@@ -36,6 +36,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "fs.h"
 #include "kbregs.h"
 #include "shell.h"
+#include "fsview.h"
 
 void splash_screen(void);
 
@@ -67,6 +68,8 @@ void kmain(void)
 	bdev_init();
 
 	mount_boot_fs();
+
+	fsv_init(&fsview);
 
 #ifdef AUTOSTART_GUI
 	if(!kb_isdown(KB_F8)) {

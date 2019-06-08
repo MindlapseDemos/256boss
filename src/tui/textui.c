@@ -27,6 +27,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "comloader.h"
 #include "asmops.h"
 #include "panic.h"
+#include "fsview.h"
 
 #define NCOLS	80
 #define NROWS	25
@@ -51,53 +52,48 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define COL_FSVIEW_FILE		LTGREY
 #define COL_FSVIEW_DIR		WHITE
 
-struct dir_entry {
-	char *name;
-	int type;
-};
-
-
+static void init_scr(void);
+static int openfile(const char *path);
 static void draw_topbar(void);
 static void draw_clock(void);
 static void draw_statusbar(void);
-static void draw_dirview(int x, int y, int w, int h);
+static void draw_dirview(int x, int y, int w, int h, int first, int last);
 
 static void fill_rect(int x, int y, int w, int h, uint16_t c);
 static void draw_frame(const char *title, int x, int y, int w, int h, unsigned char fg, unsigned char bg);
-
-static void load_cur_dir(void);
+static void invalidate(int idx);
 
 static uint16_t *vmem = (uint16_t*)0xb8000;
+static unsigned char orig_attr;
 
-static int cursel;
-static int scroll;
-static int num_vis;
+static int dirty_start = -1, dirty_end = -1;
 
-static struct dir_entry *entries;
-static int num_entries;
-
-static int dirty;
-
-
-int textui(void)
+static void init_scr(void)
 {
-	unsigned char orig_attr;
-
-restart:
 	set_vga_mode(3);
-	orig_attr = con_getattr();
 	con_show_cursor(0);
 	con_clear();	/* to reset scrolling */
-
-	load_cur_dir();
 
 	memset16(vmem, CHAR_ATTR(G_CHECKER, ATTR_BG), NCOLS * NROWS);
 
 	draw_topbar();
-	draw_dirview(2, 1, FSVIEW_COLS, FSVIEW_ROWS);
+	draw_dirview(2, 1, FSVIEW_COLS, FSVIEW_ROWS, -1, -1);
 	draw_statusbar();
+}
 
-	num_vis = FSVIEW_ROWS - 2;
+
+int textui(void)
+{
+	int sel, scr;
+
+	orig_attr = con_getattr();
+
+	fsview.num_vis = FSVIEW_ROWS - 2;
+	fsview.openfile = openfile;
+	fsv_keep_vis(&fsview, fsview.cursel);
+
+	init_scr();
+
 
 	for(;;) {
 		int c;
@@ -105,52 +101,56 @@ restart:
 		halt_cpu();
 		while((c = kb_getkey()) >= 0) {
 			switch(c) {
-			case 's':
 			case KB_DOWN:
-				if(cursel < num_entries - 1) {
-					cursel++;
-					dirty = 1;
+				sel = fsview.cursel;
+				if(fsv_sel_next(&fsview)) {
+					invalidate(sel);
+					invalidate(fsview.cursel);
+				}
+				break;
 
-					if(cursel - scroll >= num_vis) {
-						scroll++;
+			case KB_UP:
+				sel = fsview.cursel;
+				if(fsv_sel_prev(&fsview)) {
+					invalidate(sel);
+					invalidate(fsview.cursel);
+				}
+				break;
+
+			case KB_HOME:
+				sel = fsview.cursel;
+				scr = fsview.scroll;
+				if(fsv_sel_first(&fsview)) {
+					if(fsview.scroll != scr) {
+						invalidate(-1);
+					} else {
+						invalidate(sel);
+						invalidate(fsview.cursel);
 					}
 				}
 				break;
 
-			case 'w':
-			case KB_UP:
-				if(cursel > 0) {
-					cursel--;
-					dirty = 1;
-
-					if(cursel < scroll) {
-						scroll = cursel;
+			case KB_END:
+				sel = fsview.cursel;
+				scr = fsview.scroll;
+				if(fsv_sel_last(&fsview)) {
+					if(fsview.scroll != scr) {
+						invalidate(-1);
+					} else {
+						invalidate(sel);
+						invalidate(fsview.cursel);
 					}
 				}
+				break;
+
+			case '\b':
+				fsv_updir(&fsview);
+				invalidate(-1);
 				break;
 
 			case '\n':
-				if(cursel < num_entries) {
-					if(entries[cursel].type == DT_DIR) {
-						chdir(entries[cursel].name);
-						load_cur_dir();
-						cursel = 0;
-						scroll = 0;
-						dirty = 1;
-					} else {
-						char *ename = entries[cursel].name;
-						if(strcasecmp(ename + strlen(ename) - 4, ".com") == 0) {
-							if(load_com_binary(ename) == 0) {
-								con_setattr(orig_attr);
-								set_vga_mode(3);
-								run_com_binary();
-								goto restart;
-							}
-						} else {
-							/* TODO */
-						}
-					}
-				}
+				fsv_activate(&fsview);
+				invalidate(-1);
 				break;
 
 			case KB_F8:
@@ -158,9 +158,9 @@ restart:
 			}
 		}
 
-		if(dirty) {
-			dirty = 0;
-			draw_dirview(2, 1, 60, 23);
+		if(dirty_start != -1) {
+			draw_dirview(2, 1, 60, 23, dirty_start, dirty_end);
+			dirty_start = dirty_end = -1;
 		}
 		draw_clock();
 	}
@@ -170,6 +170,25 @@ end:
 	con_clear();
 	con_show_cursor(1);
 	return 0;
+}
+
+static int openfile(const char *path)
+{
+	char *suffix = strrchr(path, '.');
+
+	if(strcasecmp(suffix, ".com") == 0) {
+		if(load_com_binary(path) == -1) {
+			return -1;
+		}
+		con_setattr(orig_attr);
+		set_vga_mode(3);
+		run_com_binary();
+		init_scr();
+		return 0;
+	} else {
+		/* TODO view file contents */
+	}
+	return -1;
 }
 
 static void draw_topbar(void)
@@ -200,13 +219,13 @@ static void draw_statusbar(void)
 	con_printf(0, NROWS - 1, "status bar ...");
 }
 
-static void draw_dirview(int x, int y, int w, int h)
+static void draw_dirview(int x, int y, int w, int h, int first, int last)
 {
 	int i, nlines, max_nlines, row, col;
 	int len, namecol_len, sizecol_len;
 	char buf[PATH_MAX];
 	unsigned char attr_file, attr_dir;
-	struct dir_entry *eptr;
+	struct fsview_dirent *eptr;
 	int eidx;
 
 	attr_file = ATTR(COL_FSVIEW_FILE, COL_FSVIEW_BG);
@@ -216,28 +235,35 @@ static void draw_dirview(int x, int y, int w, int h)
 	namecol_len = w - sizecol_len;
 	max_nlines = h - 2;
 
-	fill_rect(x, y, w, h, CHAR_COL(' ', COL_FSVIEW_FILE, COL_FSVIEW_BG));
-	draw_frame(getcwd(buf, PATH_MAX), x, y, w, h, COL_FSVIEW_FRM, COL_FSVIEW_BG);
+	if(first == -1 || (first <= 0 && last >= fsview.num_entries - 1)) {
+		first = 0;
+		last = fsview.num_entries - 1;
 
-	nlines = num_entries - scroll;
+		fill_rect(x, y, w, h, CHAR_COL(' ', COL_FSVIEW_FILE, COL_FSVIEW_BG));
+		draw_frame(getcwd(buf, PATH_MAX), x, y, w, h, COL_FSVIEW_FRM, COL_FSVIEW_BG);
+	}
+
+	nlines = fsview.num_entries - fsview.scroll;
 	if(nlines > max_nlines) {
 		nlines = max_nlines;
 	}
 
-	eidx = scroll;
-	eptr = entries + scroll;
+	eidx = fsview.scroll;
+	eptr = fsview.entries + fsview.scroll;
 
 	for(i=0; i<nlines; i++) {
-		unsigned char attr = eptr->type == DT_DIR ? attr_dir : attr_file;
-		if(eidx == cursel) {
-			attr = (attr & 0xf) | (BROWN << 4);
-		}
-		con_setattr(attr);
+		if(eidx >= first && eidx <= last) {
+			unsigned char attr = eptr->type == DT_DIR ? attr_dir : attr_file;
+			if(eidx == fsview.cursel) {
+				attr = (attr & 0xf) | (BROWN << 4);
+			}
+			con_setattr(attr);
 
-		col = x + 1;
-		row = y + 1 + i;
-		len = con_printf(col, row, "%s", eptr->name);
-		memset16(vmem + row * NCOLS + col + len, CHAR_ATTR(' ', attr), w - len - 2);
+			col = x + 1;
+			row = y + 1 + i;
+			len = con_printf(col, row, "%s", eptr->name);
+			memset16(vmem + row * NCOLS + col + len, CHAR_ATTR(' ', attr), w - len - 2);
+		}
 
 		eidx++;
 		eptr++;
@@ -296,43 +322,17 @@ static void draw_frame(const char *title, int x, int y, int w, int h, unsigned c
 	memset16(ptr + 1, CHAR_ATTR(G_HLINE, attr), w - 2);
 }
 
-static void load_cur_dir(void)
+static void invalidate(int idx)
 {
-	int count;
-	DIR *dir;
-	struct dirent *dent;
-	struct dir_entry *de;
-
-	if(!(dir = opendir("."))) {
+	if(idx == -1) {
+		dirty_start = 0;
+		dirty_end = fsview.num_entries - 1;
 		return;
 	}
-
-	count = 0;
-	while((dent = readdir(dir))) {
-		if(strcmp(dent->d_name, ".") == 0) continue;
-		count++;
+	if(dirty_start == -1) {
+		dirty_start = dirty_end = idx;
+		return;
 	}
-	rewinddir(dir);
-
-	if(!(de = malloc(count * sizeof *de))) {
-		panic("Failed to allocate directory entries array");
-	}
-
-	free(entries);
-	entries = de;
-	num_entries = count;
-
-	while((dent = readdir(dir))) {
-		if(strcmp(dent->d_name, ".") == 0) continue;
-		if(!(de->name = malloc(strlen(dent->d_name) + 1))) {
-			panic("failed to allocate directory entry name");
-		}
-		strcpy(de->name, dent->d_name);
-		de->type = dent->d_type;
-		de++;
-	}
-
-	/* TODO sort */
-
-	closedir(dir);
+	if(idx < dirty_start) dirty_start = idx;
+	if(idx > dirty_end) dirty_end = idx;
 }

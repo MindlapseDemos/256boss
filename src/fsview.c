@@ -67,6 +67,7 @@ int fsv_sel(struct fsview *fsv, int s)
 	if(s < 0 || s >= fsv->num_entries) return 0;
 
 	fsv->cursel = s;
+	fsv_keep_vis(fsv, fsv->cursel);
 	return 1;
 }
 
@@ -74,6 +75,7 @@ int fsv_sel_prev(struct fsview *fsv)
 {
 	if(fsv->cursel <= 0) return 0;
 	fsv->cursel--;
+	fsv_keep_vis(fsv, fsv->cursel);
 	return 1;
 }
 
@@ -81,6 +83,7 @@ int fsv_sel_next(struct fsview *fsv)
 {
 	if(fsv->cursel >= fsv->num_entries - 1) return 0;
 	fsv->cursel++;
+	fsv_keep_vis(fsv, fsv->cursel);
 	return 1;
 }
 
@@ -88,6 +91,7 @@ int fsv_sel_first(struct fsview *fsv)
 {
 	if(fsv->cursel <= 0) return 0;
 	fsv->cursel = 0;
+	fsv_keep_vis(fsv, fsv->cursel);
 	return 1;
 }
 
@@ -95,7 +99,21 @@ int fsv_sel_last(struct fsview *fsv)
 {
 	if(fsv->cursel >= fsv->num_entries - 1) return 0;
 	fsv->cursel = fsv->num_entries - 1;
+	fsv_keep_vis(fsv, fsv->cursel);
 	return 1;
+}
+
+int fsv_keep_vis(struct fsview *fsv, int idx)
+{
+	if(idx < fsv->scroll) {
+		fsv->scroll = idx;
+		return 1;
+	}
+	if(idx >= fsv->scroll + fsv->num_vis) {
+		fsv->scroll = idx - fsv->num_vis + 1;
+		return 1;
+	}
+	return 0;
 }
 
 int fsv_chdir(struct fsview *fsv, const char *path)
@@ -125,8 +143,8 @@ int fsv_activate(struct fsview *fsv)
 		return 0;
 	}
 
-	if(fsv->openfunc) {
-		return fsv->openfunc(fsvent->name);
+	if(fsv->openfile) {
+		return fsv->openfile(fsvent->name);
 	}
 	return -1;
 }
@@ -179,6 +197,7 @@ static int load_cur_dir(struct fsview *fsv)
 			fsv_destroy(fsv);
 			return -1;
 		}
+		strcpy(name, dent->d_name);
 
 		if(dent->d_type == DT_DIR) {
 			fsv->dirs->name = name;
@@ -193,6 +212,9 @@ static int load_cur_dir(struct fsview *fsv)
 		}
 	}
 	closedir(dir);
+
+	fsv->dirs = fsv->entries;
+	fsv->files = fsv->entries + fsv->num_dirs;
 
 	fsv->cursel = 0;
 	fsv->scroll = 0;
