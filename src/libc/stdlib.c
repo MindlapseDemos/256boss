@@ -16,9 +16,11 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include <stdlib.h>
+#include <string.h>
 #include <ctype.h>
 #include <limits.h>
 #include <assert.h>
+#include <alloca.h>
 
 int atoi(const char *str)
 {
@@ -199,4 +201,72 @@ int atexit(void (*func)(void))
 void abort(void)
 {
 	panic("Aborted\n");
+}
+
+#define QSORT_THRESHOLD	4
+#define ITEM(idx)	((char*)arr + (idx) * itemsz)
+
+#define SWAP(p, q) \
+	do { \
+		int nn = itemsz; \
+		char *pp = (p); \
+		char *qq = (q); \
+		do { \
+			char tmp = *pp; \
+			*pp++ = *qq; \
+			*qq++ = tmp; \
+		} while(--nn > 0); \
+	} while(0)
+
+static void ins_sort(void *arr, size_t count, size_t itemsz, int (*cmp)(const void*, const void*))
+{
+	int i;
+	char *it, *a, *b;
+
+	if(count <= 1) return;
+
+	it = (char*)arr + itemsz;
+	for(i=1; i<count; i++) {
+		a = it;
+		it += itemsz;
+		while(a > (char*)arr && cmp(a, (b = a - itemsz)) < 0) {
+			SWAP(a, b);
+			a -= itemsz;
+		}
+	}
+}
+
+void qsort(void *arr, size_t count, size_t itemsz, int (*cmp)(const void*, const void*))
+{
+	char *ma, *mb, *mc, *left, *right;
+	size_t sepidx, nleft, nright;
+
+	if(count <= 1) return;
+
+	if(count < QSORT_THRESHOLD) {
+		ins_sort(arr, count, itemsz, cmp);
+		return;
+	}
+
+	ma = arr;
+	mb = ITEM(count / 2);
+	mc = ITEM(count - 1);
+	if(cmp(ma, mb) < 0) SWAP(ma, mb);
+	if(cmp(mc, ma) < 0) SWAP(mc, ma);
+
+	left = ma + itemsz;
+	right = mc - itemsz;
+	for(;;) {
+		while(cmp(left, ma) < 0) left += itemsz;
+		while(cmp(ma, right) < 0) right -= itemsz;
+		if(left >= right) break;
+		SWAP(left, right);
+	}
+	SWAP(ma, right);
+	sepidx = (right - (char*)arr) / itemsz;
+	nleft = sepidx;
+	nright = count - nleft - 1;
+
+	qsort(ma, nleft, itemsz, cmp);
+	qsort(right + itemsz, nright, itemsz, cmp);
 }

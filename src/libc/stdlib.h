@@ -36,6 +36,8 @@ int atexit(void (*func)(void));
 
 void abort(void);
 
+void qsort(void *arr, size_t count, size_t size, int (*cmp)(const void*, const void*));
+
 /* defined in malloc.c */
 void *malloc(size_t sz);
 void *calloc(size_t num, size_t sz);

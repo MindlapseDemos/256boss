@@ -150,6 +150,13 @@ int fsv_activate(struct fsview *fsv)
 }
 
 
+static int entcmp(const void *a, const void *b)
+{
+	const struct fsview_dirent *enta = a;
+	const struct fsview_dirent *entb = b;
+	return strcasecmp(enta->name, entb->name);
+}
+
 static int load_cur_dir(struct fsview *fsv)
 {
 	int nfiles = 0, ndirs = 0;
@@ -215,6 +222,9 @@ static int load_cur_dir(struct fsview *fsv)
 
 	fsv->dirs = fsv->entries;
 	fsv->files = fsv->entries + fsv->num_dirs;
+
+	qsort(fsv->dirs, ndirs, sizeof *fsv->dirs, entcmp);
+	qsort(fsv->files, nfiles, sizeof *fsv->files, entcmp);
 
 	fsv->cursel = 0;
 	fsv->scroll = 0;
