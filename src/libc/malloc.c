@@ -22,6 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "mem.h"
 #include "panic.h"
 
+#define SINGLE_POOL
 #define MALLOC_DEBUG
 
 struct mem_desc {
@@ -38,6 +39,10 @@ struct mem_desc {
 
 #define DESC_PTR(b)	((void*)((struct mem_desc*)(b) + 1))
 #define PTR_DESC(p)	((struct mem_desc*)(p) - 1)
+
+#ifdef SINGLE_POOL
+static struct mem_desc *pool;
+#else
 
 #define NUM_POOLS	16
 #define FIRST_POOL_POW2	5
@@ -59,6 +64,102 @@ static int pool_index(int sz)
 	}
 	return x - FIRST_POOL_POW2;
 }
+#endif	/* !SINGLE_POOL */
+
+
+#ifdef SINGLE_POOL
+void *malloc(size_t sz)
+{
+	int pg0, npages;
+	size_t total_sz;
+	struct mem_desc *mem, *prev, dummy;
+	int found = 0;
+
+	total_sz = sz + sizeof(struct mem_desc);
+
+	dummy.next = pool;
+	prev = &dummy;
+	while(prev->next) {
+		mem = prev->next;
+		if(mem->size == total_sz) {
+			prev->next = mem->next;
+			found = 1;
+			break;
+		}
+		if(mem->size > total_sz) {
+			void *ptr = (char*)mem + mem->size - total_sz;
+			mem->size -= total_sz;
+			mem = ptr;
+			found = 1;
+			break;
+		}
+		prev = prev->next;
+	}
+	pool = dummy.next;
+
+	if(found) {
+		mem->size = total_sz;
+		mem->magic = MAGIC_USED;
+		mem->next = 0;
+		return DESC_PTR(mem);
+	}
+
+	/* did not find a free block, grab a new one */
+	npages = BYTES_TO_PAGES(total_sz);
+	if((pg0 = alloc_ppages(npages)) == -1) {
+		errno = ENOMEM;
+		return 0;
+	}
+	mem = PAGE_TO_PTR(pg0);
+	mem->size = npages * 4096;
+	mem->next = 0;
+	mem->magic = MAGIC_USED;
+	return DESC_PTR(mem);
+}
+
+void free(void *p)
+{
+	struct mem_desc *mem, *prev, dummy;
+
+	if(!p) return;
+	mem = PTR_DESC(p);
+
+	if(mem->magic != MAGIC_USED) {
+		if(mem->magic == MAGIC_FREE) {
+			panic("free(%p): double-free\n", p);
+		} else {
+			panic("free(%p): corrupted magic (%x)!\n", p, mem->magic);
+		}
+	}
+	mem->magic = MAGIC_FREE;
+
+	dummy.next = pool;
+	prev = &dummy;
+
+	while(prev->next) {
+		char *end = (char*)mem + mem->size;
+		if(end == (char*)prev->next) {
+			mem->size += prev->next->size;
+			mem->next = prev->next->next;
+			prev->next->magic = 0;
+			prev->next = mem;
+			return;
+		}
+		if(end < (char*)prev->next) {
+			mem->next = prev->next;
+			prev->next = mem;
+			return;
+		}
+
+		prev = prev->next;
+	}
+	pool = dummy.next;
+
+	prev->next = mem;
+	mem->next = 0;
+}
+
+#else	/* !SINGLE_POOL */
 
 void *malloc(size_t sz)
 {
@@ -155,6 +256,8 @@ void free(void *p)
 	add_to_pool(mem);
 }
 
+#endif	/* !def SINGLE_POOL */
+
 
 void *calloc(size_t num, size_t size)
 {
@@ -205,6 +308,7 @@ static void check_cycles(struct mem_desc *mem)
 }
 #endif	/* MALLOC_DEBUG */
 
+#ifndef SINGLE_POOL
 static int add_to_pool(struct mem_desc *mem)
 {
 	int pidx;
@@ -253,4 +357,4 @@ static int add_to_pool(struct mem_desc *mem)
 	check_cycles(pools[pidx]);
 	return 0;
 }
-
+#endif	/* !def SINGLE_POOL */

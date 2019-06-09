@@ -28,7 +28,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "comloader.h"
 #include "asmops.h"
 #include "panic.h"
-#include "fsview.h"
+#include "ui/fsview.h"
+#include "txview.h"
 #include "util.h"
 
 #define NCOLS	80
@@ -62,6 +63,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define COL_FSVIEW_EXEC		LTRED
 
 static void init_scr(void);
+static void fsview_draw(void);
+static int fsview_keypress(int c);
 static int openfile(const char *path);
 static void draw_topbar(void);
 static void draw_clock(void);
@@ -77,12 +80,22 @@ static void cancel_search(void);
 static uint16_t *vmem = (uint16_t*)0xb8000;
 static unsigned char orig_attr;
 
+static void (*draw)(void);
+static int (*keypress)(int c);
+
+#define DIRTY_ALL		0xffffffff
+#define DIRTY_BG		0x01
+#define DIRTY_TITLE		0x02
+#define DIRTY_STATUS	0x04
 static int dirty_start = -1, dirty_end = -1;
-static int dirty_status;
+static unsigned int dirty;
 
 #define MAX_SEARCH_LEN	32
 static char search[MAX_SEARCH_LEN + 1];
 static int search_len;
+
+#define MAX_TITLE_LEN	60
+static char top_title[MAX_TITLE_LEN + 1];
 
 
 static void init_scr(void)
@@ -94,14 +107,11 @@ static void init_scr(void)
 	con_show_cursor(0);
 	con_clear();	/* to reset scrolling */
 
-	memset16(vmem, CHAR_ATTR(G_CHECKER, ATTR_BG), NCOLS * NROWS);
-
-	draw_topbar();
-	draw_dirview(FSVIEW_X, FSVIEW_Y, FSVIEW_COLS, FSVIEW_ROWS, -1, -1);
-	draw_statusbar();
-
 	dirty_start = dirty_end = -1;
-	dirty_status = 0;
+	dirty = DIRTY_ALL;
+
+	draw = fsview_draw;
+	keypress = fsview_keypress;
 }
 
 #define INVALIDATE()	\
@@ -116,8 +126,6 @@ static void init_scr(void)
 
 int textui(void)
 {
-	int sel, scr, tmp;
-
 	orig_attr = con_getattr();
 
 	fsview.num_vis = FSVIEW_ROWS - 2;
@@ -132,102 +140,29 @@ int textui(void)
 
 		halt_cpu();
 		while((c = kb_getkey()) >= 0) {
-			sel = fsview.cursel;
-			scr = fsview.scroll;
-
+			/* global overrides for all views */
 			switch(c) {
-			case KB_DOWN:
-				if(fsv_sel_next(&fsview)) {
-					INVALIDATE();
-				}
-				cancel_search();
-				break;
-
-			case KB_UP:
-				if(fsv_sel_prev(&fsview)) {
-					INVALIDATE();
-				}
-				cancel_search();
-				break;
-
-			case KB_HOME:
-				if(fsv_sel_first(&fsview)) {
-					INVALIDATE();
-				}
-				cancel_search();
-				break;
-
-			case KB_END:
-				if(fsv_sel_last(&fsview)) {
-					INVALIDATE();
-				}
-				cancel_search();
-				break;
-
-			case KB_PGDN:
-				tmp = fsview.cursel + fsview.num_vis;
-				fsv_sel(&fsview, tmp >= fsview.num_entries ? fsview.num_entries - 1 : tmp);
-				fsview.scroll = fsview.cursel;
-				INVALIDATE();
-				cancel_search();
-				break;
-
-			case KB_PGUP:
-				tmp = fsview.cursel - fsview.num_vis;
-				fsv_sel(&fsview, tmp < 0 ? 0 : tmp);
-				fsview.scroll = fsview.cursel;
-				INVALIDATE();
-				cancel_search();
-				break;
-
-			case '\b':
-				if(search_len > 0) {
-					search[--search_len] = 0;
-					dirty_status = 1;
-				} else {
-					fsv_updir(&fsview);
-					invalidate(-1);
-					cancel_search();
-				}
-				break;
-
-			case '\n':
-				fsv_activate(&fsview);
-				invalidate(-1);
-				cancel_search();
-				break;
-
-			case 27:
-				cancel_search();
+			case KB_F3:
+			case KB_F4:
 				break;
 
 			case KB_F8:
 				goto end;
+			}
 
-			default:
-				if(isprint(c)) {
-					if(search_len < MAX_SEARCH_LEN) {
-						search[search_len++] = c;
-						search[search_len] = 0;
-						dirty_status = 1;
-
-						if(fsv_sel_match(&fsview, search)) {
-							INVALIDATE();
-						}
-					}
-				}
+			if(keypress(c) == -1) {
+				draw = fsview_draw;
+				keypress = fsview_keypress;
+				txui_set_title(0);
+				dirty = DIRTY_ALL;
 			}
 		}
 
-		if(dirty_start != -1) {
-			draw_dirview(FSVIEW_X, FSVIEW_Y, FSVIEW_COLS, FSVIEW_ROWS, dirty_start, dirty_end);
-			dirty_start = dirty_end = -1;
+		draw();
+		if(dirty & DIRTY_TITLE) {
+			dirty &= ~DIRTY_TITLE;
+			draw_topbar();
 		}
-		if(dirty_status) {
-			draw_statusbar();
-			dirty_status = 0;
-		}
-		draw_clock();
 	}
 
 end:
@@ -236,6 +171,143 @@ end:
 	con_show_cursor(1);
 	return 0;
 }
+
+void txui_set_title(const char *title)
+{
+	int len;
+
+	if(!title) {
+		if(*top_title) {
+			*top_title = 0;
+			dirty |= DIRTY_TITLE;
+		}
+	} else {
+		if(strcmp(top_title, title) == 0) {
+			return;
+		}
+		len = strlen(title);
+
+		if(len > MAX_TITLE_LEN) {
+			memcpy(top_title, title, MAX_TITLE_LEN - 3);
+			strcpy(top_title + MAX_TITLE_LEN - 3, "...");
+		} else {
+			strcpy(top_title, title);
+		}
+		dirty |= DIRTY_TITLE;
+	}
+}
+
+static void fsview_draw(void)
+{
+	if(dirty & DIRTY_BG) {
+		memset16(vmem, CHAR_ATTR(G_CHECKER, ATTR_BG), NCOLS * NROWS);
+		dirty_start = 0;
+		dirty_end = INT_MAX;
+	}
+
+	if(dirty_start != -1) {
+		draw_dirview(FSVIEW_X, FSVIEW_Y, FSVIEW_COLS, FSVIEW_ROWS, dirty_start, dirty_end);
+		dirty_start = dirty_end = -1;
+	}
+
+	if(dirty & DIRTY_STATUS) {
+		draw_statusbar();
+	}
+	draw_clock();
+
+	dirty &= ~(DIRTY_STATUS | DIRTY_BG);
+}
+
+
+static int fsview_keypress(int c)
+{
+	int sel, scr, tmp;
+	sel = fsview.cursel;
+	scr = fsview.scroll;
+
+	switch(c) {
+	case KB_DOWN:
+		if(fsv_sel_next(&fsview)) {
+			INVALIDATE();
+		}
+		cancel_search();
+		break;
+
+	case KB_UP:
+		if(fsv_sel_prev(&fsview)) {
+			INVALIDATE();
+		}
+		cancel_search();
+		break;
+
+	case KB_HOME:
+		if(fsv_sel_first(&fsview)) {
+			INVALIDATE();
+		}
+		cancel_search();
+		break;
+
+	case KB_END:
+		if(fsv_sel_last(&fsview)) {
+			INVALIDATE();
+		}
+		cancel_search();
+		break;
+
+	case KB_PGDN:
+		tmp = fsview.cursel + fsview.num_vis;
+		fsv_sel(&fsview, tmp >= fsview.num_entries ? fsview.num_entries - 1 : tmp);
+		fsview.scroll = fsview.cursel;
+		INVALIDATE();
+		cancel_search();
+		break;
+
+	case KB_PGUP:
+		tmp = fsview.cursel - fsview.num_vis;
+		fsv_sel(&fsview, tmp < 0 ? 0 : tmp);
+		fsview.scroll = fsview.cursel;
+		INVALIDATE();
+		cancel_search();
+		break;
+
+	case '\b':
+		if(search_len > 0) {
+			search[--search_len] = 0;
+			dirty |= DIRTY_STATUS;
+		} else {
+			fsv_updir(&fsview);
+			invalidate(-1);
+			cancel_search();
+		}
+		break;
+
+	case '\n':
+		fsv_activate(&fsview);
+		invalidate(-1);
+		cancel_search();
+		break;
+
+	case 27:
+		cancel_search();
+		break;
+
+	default:
+		if(isprint(c)) {
+			if(search_len < MAX_SEARCH_LEN) {
+				search[search_len++] = c;
+				search[search_len] = 0;
+				dirty |= DIRTY_STATUS;
+
+				if(fsv_sel_match(&fsview, search)) {
+					INVALIDATE();
+				}
+			}
+		}
+	}
+
+	return 0;
+}
+
 
 static int openfile(const char *path)
 {
@@ -249,7 +321,10 @@ static int openfile(const char *path)
 		init_scr();
 		return 0;
 	} else {
-		/* TODO view file contents */
+		if(txview_open(path) != -1) {
+			draw = txview_draw;
+			keypress = txview_keypress;
+		}
 	}
 	return -1;
 }
@@ -258,21 +333,30 @@ static void draw_topbar(void)
 {
 	con_setattr(ATTR_TOPBAR | FG_BRIGHT);
 	memset16(vmem, CHAR_ATTR(' ', ATTR_TOPBAR), NCOLS);
-	con_printf(0, 0, "256boss");
+
+	if(*top_title) {
+		con_printf(0, 0, "256boss - %s", top_title);
+	} else {
+		con_printf(0, 0, "256boss");
+	}
 
 	draw_clock();
 }
 
 static void draw_clock(void)
 {
+	static time_t prev_t;
 	time_t t;
 	struct tm *tm;
 
 	t = time(0);
-	tm = localtime(&t);
+	if(t != prev_t) {
+		tm = localtime(&t);
 
-	con_setattr(ATTR_TOPBAR);
-	con_printf(73, 0, "[%02d:%02d]", tm->tm_hour, tm->tm_min);
+		con_setattr(ATTR_TOPBAR);
+		con_printf(73, 0, "[%02d:%02d]", tm->tm_hour, tm->tm_min);
+		prev_t = t;
+	}
 }
 
 static void draw_statusbar(void)
@@ -439,6 +523,6 @@ static void cancel_search(void)
 	if(search_len > 0) {
 		*search = 0;
 		search_len = 0;
-		dirty_status = 1;
+		dirty |= DIRTY_STATUS;
 	}
 }

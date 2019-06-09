@@ -36,7 +36,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "fs.h"
 #include "kbregs.h"
 #include "shell.h"
-#include "fsview.h"
+#include "ui/fsview.h"
 
 void splash_screen(void);
 

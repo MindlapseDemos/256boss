@@ -15,11 +15,29 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#ifndef TEXTUI_H_
-#define TEXTUI_H_
+#ifndef FILEVIEW_H_
+#define FILEVIEW_H_
 
-int textui(void);
+enum {
+	FILE_TYPE_BIN,
+	FILE_TYPE_TEXT
+};
 
-void txui_set_title(const char *title);
+struct span {
+	char *start;
+	int len;
+};
 
-#endif	/* TEXTUI_H_ */
+struct fileview {
+	char *data;
+	int size;
+	int type;
+
+	struct span *lines;
+	int num_lines;
+};
+
+struct fileview *fv_open(const char *path);
+void fv_close(struct fileview *fv);
+
+#endif	/* FILEVIEW_H_ */

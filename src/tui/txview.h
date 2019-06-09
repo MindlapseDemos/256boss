@@ -15,11 +15,14 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#ifndef TEXTUI_H_
-#define TEXTUI_H_
+#ifndef TXVIEW_H_
+#define TXVIEW_H_
 
-int textui(void);
+int txview_open(const char *path);
+void txview_close(void);
 
-void txui_set_title(const char *title);
+void txview_draw(void);
 
-#endif	/* TEXTUI_H_ */
+int txview_keypress(int c);
+
+#endif	/* TXVIEW_H_ */
