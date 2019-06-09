@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <string.h>
 #include <time.h>
 #include <limits.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <dirent.h>
 #include "textui.h"
@@ -68,13 +69,24 @@ static void fill_rect(int x, int y, int w, int h, uint16_t c);
 static void draw_frame(const char *title, int x, int y, int w, int h, unsigned char fg, unsigned char bg);
 static void invalidate(int idx);
 
+static void cancel_search(void);
+
 static uint16_t *vmem = (uint16_t*)0xb8000;
 static unsigned char orig_attr;
 
 static int dirty_start = -1, dirty_end = -1;
+static int dirty_status;
+
+#define MAX_SEARCH_LEN	32
+static char search[MAX_SEARCH_LEN + 1];
+static int search_len;
+
 
 static void init_scr(void)
 {
+	*search = 0;
+	search_len = 0;
+
 	set_vga_mode(3);
 	con_show_cursor(0);
 	con_clear();	/* to reset scrolling */
@@ -84,6 +96,9 @@ static void init_scr(void)
 	draw_topbar();
 	draw_dirview(FSVIEW_X, FSVIEW_Y, FSVIEW_COLS, FSVIEW_ROWS, -1, -1);
 	draw_statusbar();
+
+	dirty_start = dirty_end = -1;
+	dirty_status = 0;
 }
 
 #define INVALIDATE()	\
@@ -122,24 +137,28 @@ int textui(void)
 				if(fsv_sel_next(&fsview)) {
 					INVALIDATE();
 				}
+				cancel_search();
 				break;
 
 			case KB_UP:
 				if(fsv_sel_prev(&fsview)) {
 					INVALIDATE();
 				}
+				cancel_search();
 				break;
 
 			case KB_HOME:
 				if(fsv_sel_first(&fsview)) {
 					INVALIDATE();
 				}
+				cancel_search();
 				break;
 
 			case KB_END:
 				if(fsv_sel_last(&fsview)) {
 					INVALIDATE();
 				}
+				cancel_search();
 				break;
 
 			case KB_PGDN:
@@ -147,6 +166,7 @@ int textui(void)
 				fsv_sel(&fsview, tmp >= fsview.num_entries ? fsview.num_entries - 1 : tmp);
 				fsview.scroll = fsview.cursel;
 				INVALIDATE();
+				cancel_search();
 				break;
 
 			case KB_PGUP:
@@ -154,26 +174,55 @@ int textui(void)
 				fsv_sel(&fsview, tmp < 0 ? 0 : tmp);
 				fsview.scroll = fsview.cursel;
 				INVALIDATE();
+				cancel_search();
 				break;
 
 			case '\b':
-				fsv_updir(&fsview);
-				invalidate(-1);
+				if(search_len > 0) {
+					search[--search_len] = 0;
+					dirty_status = 1;
+				} else {
+					fsv_updir(&fsview);
+					invalidate(-1);
+					cancel_search();
+				}
 				break;
 
 			case '\n':
 				fsv_activate(&fsview);
 				invalidate(-1);
+				cancel_search();
+				break;
+
+			case 27:
+				cancel_search();
 				break;
 
 			case KB_F8:
 				goto end;
+
+			default:
+				if(isprint(c)) {
+					if(search_len < MAX_SEARCH_LEN) {
+						search[search_len++] = c;
+						search[search_len] = 0;
+						dirty_status = 1;
+
+						if(fsv_sel_match(&fsview, search)) {
+							INVALIDATE();
+						}
+					}
+				}
 			}
 		}
 
 		if(dirty_start != -1) {
 			draw_dirview(FSVIEW_X, FSVIEW_Y, FSVIEW_COLS, FSVIEW_ROWS, dirty_start, dirty_end);
 			dirty_start = dirty_end = -1;
+		}
+		if(dirty_status) {
+			draw_statusbar();
+			dirty_status = 0;
 		}
 		draw_clock();
 	}
@@ -229,7 +278,12 @@ static void draw_statusbar(void)
 {
 	con_setattr(ATTR_STBAR);
 	memset16(vmem + NCOLS * (NROWS - 1), CHAR_ATTR(' ', ATTR_STBAR), NCOLS);
-	con_printf(0, NROWS - 1, "status bar ...");
+
+	if(search_len > 0) {
+		con_printf(0, NROWS - 1, "Search: %s", search);
+	} else {
+		con_printf(0, NROWS - 1, "Hint: type to search, esc to cancel, enter to activate");
+	}
 }
 
 static void draw_dirview(int x, int y, int w, int h, int first, int last)
@@ -370,4 +424,13 @@ static void invalidate(int idx)
 	}
 	if(idx < dirty_start) dirty_start = idx;
 	if(idx > dirty_end) dirty_end = idx;
+}
+
+static void cancel_search(void)
+{
+	if(search_len > 0) {
+		*search = 0;
+		search_len = 0;
+		dirty_status = 1;
+	}
 }

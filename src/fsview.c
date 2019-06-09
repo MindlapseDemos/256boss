@@ -103,6 +103,20 @@ int fsv_sel_last(struct fsview *fsv)
 	return 1;
 }
 
+int fsv_sel_match(struct fsview *fsv, const char *str)
+{
+	int i;
+
+	for(i=0; i<fsv->num_entries; i++) {
+		if(strcasestr(fsv->entries[i].name, str)) {
+			fsv->cursel = i;
+			fsv_keep_vis(fsv, i);
+			return 1;
+		}
+	}
+	return 0;
+}
+
 int fsv_keep_vis(struct fsview *fsv, int idx)
 {
 	if(idx < fsv->scroll) {
@@ -157,6 +171,20 @@ static int entcmp(const void *a, const void *b)
 	return strcasecmp(enta->name, entb->name);
 }
 
+static int should_ignore(struct fsview *fsv, const char *name)
+{
+	if(strcmp(name, ".") == 0) {
+		return 1;
+	}
+	if(strcmp(name, "..") == 0) {
+		return 0;
+	}
+	if(!fsv->show_hidden && name[0] == '.') {
+		return 1;
+	}
+	return 0;
+}
+
 static int load_cur_dir(struct fsview *fsv)
 {
 	int nfiles = 0, ndirs = 0;
@@ -170,7 +198,7 @@ static int load_cur_dir(struct fsview *fsv)
 	}
 
 	while((dent = readdir(dir))) {
-		if(strcmp(dent->d_name, ".") == 0) {
+		if(should_ignore(fsv, dent->d_name)) {
 			continue;
 		}
 		if(dent->d_type == DT_DIR) {
@@ -195,7 +223,7 @@ static int load_cur_dir(struct fsview *fsv)
 	fsv->num_dirs = 0;
 
 	while((dent = readdir(dir))) {
-		if(strcmp(dent->d_name, ".") == 0) {
+		if(should_ignore(fsv, dent->d_name)) {
 			continue;
 		}
 		if(!(name = malloc(strlen(dent->d_name) + 1))) {

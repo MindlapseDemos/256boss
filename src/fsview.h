@@ -25,6 +25,7 @@ struct fsview_dirent {
 };
 
 struct fsview {
+	int show_hidden;
 	int scroll;
 	int num_vis;
 
@@ -50,6 +51,7 @@ int fsv_sel_prev(struct fsview *fsv);
 int fsv_sel_next(struct fsview *fsv);
 int fsv_sel_first(struct fsview *fsv);
 int fsv_sel_last(struct fsview *fsv);
+int fsv_sel_match(struct fsview *fsv, const char *str);
 
 int fsv_keep_vis(struct fsview *fsv, int idx);
 

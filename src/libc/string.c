@@ -139,6 +139,24 @@ char *strstr(const char *str, const char *substr)
 	return 0;
 }
 
+char *strcasestr(const char *str, const char *substr)
+{
+	while(*str) {
+		const char *s1 = str;
+		const char *s2 = substr;
+
+		while(*s1 && tolower(*s1) == tolower(*s2)) {
+			s1++;
+			s2++;
+		}
+		if(!*s2) {
+			return (char*)str;
+		}
+		str++;
+	}
+	return 0;
+}
+
 int strcmp(const char *s1, const char *s2)
 {
 	while(*s1 && *s1 == *s2) {

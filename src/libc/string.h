@@ -34,6 +34,7 @@ char *strchr(const char *s, int c);
 char *strrchr(const char *s, int c);
 
 char *strstr(const char *str, const char *substr);
+char *strcasestr(const char *str, const char *substr);
 
 int strcmp(const char *s1, const char *s2);
 int strcasecmp(const char *s1, const char *s2);
