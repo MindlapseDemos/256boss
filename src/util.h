@@ -1,5 +1,5 @@
 /*
-pcboot - bootable PC demo/game kernel
+256boss - bootable launcher for 256byte intros
 Copyright (C) 2018-2019  John Tsiombikas <nuclear@member.fsf.org>
 
 This program is free software: you can redistribute it and/or modify
@@ -15,28 +15,11 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#ifndef DIRENT_H_
-#define DIRENT_H_
+#ifndef UTIL_H_
+#define UTIL_H_
 
-typedef struct DIR DIR;
+#include <stddef.h>
 
-enum {
-	DT_UNKNOWN = 0,
-	DT_DIR = 4,
-	DT_REG = 8
-};
+const char *fsizestr(size_t sz);
 
-struct dirent {
-	char d_name[256];
-	unsigned char d_type;
-	long d_fsize;
-};
-
-DIR *opendir(const char *path);
-int closedir(DIR *dir);
-
-void rewinddir(DIR *dir);
-
-struct dirent *readdir(DIR *dir);
-
-#endif	/* DIRENT_H_ */
+#endif	/* UTIL_H_ */

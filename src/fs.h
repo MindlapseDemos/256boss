@@ -40,6 +40,7 @@ struct fs_operations {
 	struct fs_node *(*open)(struct filesys *fs, const char *path);
 	void (*close)(struct fs_node *node);
 
+	long (*fsize)(struct fs_node *node);
 	int (*seek)(struct fs_node *node, int offs, int whence);
 	long (*tell)(struct fs_node *node);
 	int (*read)(struct fs_node *node, void *buf, int sz);
@@ -65,6 +66,7 @@ struct fs_dirent {
 	char *name;
 	void *data;
 	int type;
+	long fsize;
 };
 
 struct filesys *rootfs;
@@ -78,6 +80,7 @@ char *fs_getcwd(void);
 struct fs_node *fs_open(const char *path);
 int fs_close(struct fs_node *node);
 
+long fs_filesize(struct fs_node *node);
 int fs_seek(struct fs_node *node, int offs, int whence);
 long fs_tell(struct fs_node *node);
 int fs_read(struct fs_node *node, void *buf, int sz);

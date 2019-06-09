@@ -168,6 +168,7 @@ static struct fs_node *lookup(struct filesys *fs, const char *path);
 
 static struct fs_node *open(struct filesys *fs, const char *path);
 static void close(struct fs_node *node);
+static long fsize(struct fs_node *node);
 static int seek(struct fs_node *node, int offs, int whence);
 static long tell(struct fs_node *node);
 static int read(struct fs_node *node, void *buf, int sz);
@@ -198,6 +199,7 @@ static struct fs_operations fs_fat_ops = {
 	destroy,
 	open, close,
 
+	fsize,
 	seek, tell,
 	read, write,
 
@@ -453,6 +455,17 @@ static void close(struct fs_node *node)
 	free(node);
 }
 
+static long fsize(struct fs_node *node)
+{
+	struct fat_file *file;
+
+	if(node->type != FSNODE_FILE) {
+		return -1;
+	}
+	file = node->data;
+	return file->ent.size_bytes;
+}
+
 static int seek(struct fs_node *node, int offs, int whence)
 {
 	struct fatfs *fatfs;
@@ -678,6 +691,7 @@ static void parse_dir_entries(struct fat_dir *dir)
 				strcpy(eptr->name, entname);
 				eptr->data = dent;
 				eptr->type = dent->attr == ATTR_DIR ? FSNODE_DIR : FSNODE_FILE;
+				eptr->fsize = dent->size_bytes;
 				eptr++;
 			}
 		}

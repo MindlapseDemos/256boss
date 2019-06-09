@@ -68,6 +68,7 @@ void perror(const char *s);
 FILE *fopen(const char *path, const char *mode);
 int fclose(FILE *fp);
 
+long filesize(FILE *fp);
 int fseek(FILE *fp, long offset, int from);
 void rewind(FILE *fp);
 long ftell(FILE *fp);

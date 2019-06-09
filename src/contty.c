@@ -40,7 +40,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define CRTC_REG_CURLOC_L	0x0f
 
 #define VMEM_CHAR(c, attr) \
-	((uint16_t)(c) | ((uint16_t)(attr) << 8))
+	(((uint16_t)(c) & 0xff) | ((uint16_t)(attr) << 8))
 
 static void scroll(void);
 static void crtc_cursor(int x, int y);

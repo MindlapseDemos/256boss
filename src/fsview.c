@@ -209,11 +209,13 @@ static int load_cur_dir(struct fsview *fsv)
 		if(dent->d_type == DT_DIR) {
 			fsv->dirs->name = name;
 			fsv->dirs->type = DT_DIR;
+			fsv->dirs->size = 0;
 			fsv->dirs++;
 			fsv->num_dirs++;
 		} else {
 			fsv->files->name = name;
 			fsv->files->type = DT_REG;
+			fsv->files->size = dent->d_fsize;
 			fsv->files++;
 			fsv->num_files++;
 		}

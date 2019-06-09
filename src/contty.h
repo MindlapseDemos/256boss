@@ -63,7 +63,8 @@ enum {
 
 	G_HDBL		= 0xcd,
 	G_UL_HDBL	= 0xd5,
-	G_UR_HDBL	= 0xb8
+	G_UR_HDBL	= 0xb8,
+	G_T_HDBL_TEE = 0xd1
 };
 
 

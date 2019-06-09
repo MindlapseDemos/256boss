@@ -28,12 +28,17 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "asmops.h"
 #include "panic.h"
 #include "fsview.h"
+#include "util.h"
 
 #define NCOLS	80
 #define NROWS	25
 
-#define FSVIEW_COLS	60
+#define FSVIEW_X	0
+#define FSVIEW_Y	1
+#define FSVIEW_COLS	50
 #define FSVIEW_ROWS	23
+
+#define SIZECOL_LEN	10
 
 #define CHAR_COL(c, fg, bg) \
 	((uint16_t)(c) | ((uint16_t)(fg) << 8) | ((uint16_t)(bg) << 12))
@@ -77,7 +82,7 @@ static void init_scr(void)
 	memset16(vmem, CHAR_ATTR(G_CHECKER, ATTR_BG), NCOLS * NROWS);
 
 	draw_topbar();
-	draw_dirview(2, 1, FSVIEW_COLS, FSVIEW_ROWS, -1, -1);
+	draw_dirview(FSVIEW_X, FSVIEW_Y, FSVIEW_COLS, FSVIEW_ROWS, -1, -1);
 	draw_statusbar();
 }
 
@@ -93,7 +98,7 @@ static void init_scr(void)
 
 int textui(void)
 {
-	int sel, scr;
+	int sel, scr, tmp;
 
 	orig_attr = con_getattr();
 
@@ -137,6 +142,20 @@ int textui(void)
 				}
 				break;
 
+			case KB_PGDN:
+				tmp = fsview.cursel + fsview.num_vis;
+				fsv_sel(&fsview, tmp >= fsview.num_entries ? fsview.num_entries - 1 : tmp);
+				fsview.scroll = fsview.cursel;
+				INVALIDATE();
+				break;
+
+			case KB_PGUP:
+				tmp = fsview.cursel - fsview.num_vis;
+				fsv_sel(&fsview, tmp < 0 ? 0 : tmp);
+				fsview.scroll = fsview.cursel;
+				INVALIDATE();
+				break;
+
 			case '\b':
 				fsv_updir(&fsview);
 				invalidate(-1);
@@ -153,7 +172,7 @@ int textui(void)
 		}
 
 		if(dirty_start != -1) {
-			draw_dirview(2, 1, 60, 23, dirty_start, dirty_end);
+			draw_dirview(FSVIEW_X, FSVIEW_Y, FSVIEW_COLS, FSVIEW_ROWS, dirty_start, dirty_end);
 			dirty_start = dirty_end = -1;
 		}
 		draw_clock();
@@ -216,22 +235,22 @@ static void draw_statusbar(void)
 static void draw_dirview(int x, int y, int w, int h, int first, int last)
 {
 	int i, nlines, max_nlines, row, col;
-	int len, namecol_len, sizecol_len;
+	int namecol_len;
 	char buf[PATH_MAX];
 	unsigned char attr_file, attr_dir;
 	struct fsview_dirent *eptr;
 	int eidx;
+	uint16_t *rowptr;
 
 	attr_file = ATTR(COL_FSVIEW_FILE, COL_FSVIEW_BG);
 	attr_dir = ATTR(COL_FSVIEW_DIR, COL_FSVIEW_BG);
 
-	sizecol_len = 8;
-	namecol_len = w - sizecol_len;
+	namecol_len = w - 2 - SIZECOL_LEN;
 	max_nlines = h - 2;
 
 	if(first == -1 || (first <= 0 && last >= fsview.num_entries - 1)) {
 		first = 0;
-		last = fsview.num_entries - 1;
+		last = INT_MAX;
 
 		fill_rect(x, y, w, h, CHAR_COL(' ', COL_FSVIEW_FILE, COL_FSVIEW_BG));
 		draw_frame(getcwd(buf, PATH_MAX), x, y, w, h, COL_FSVIEW_FRM, COL_FSVIEW_BG);
@@ -245,9 +264,17 @@ static void draw_dirview(int x, int y, int w, int h, int first, int last)
 	eidx = fsview.scroll;
 	eptr = fsview.entries + fsview.scroll;
 
-	for(i=0; i<nlines; i++) {
+	row = y + 1;
+	rowptr = vmem + row * NCOLS;
+
+	for(i=0; i<max_nlines; i++) {
 		if(eidx >= first && eidx <= last) {
-			unsigned char attr = eptr->type == DT_DIR ? attr_dir : attr_file;
+			unsigned char attr = attr_dir;
+
+			if(eidx < fsview.num_entries && eptr->type != DT_DIR) {
+				attr = attr_file;
+			}
+
 			if(eidx == fsview.cursel) {
 				attr = (attr & 0xf) | (BROWN << 4);
 			}
@@ -255,12 +282,24 @@ static void draw_dirview(int x, int y, int w, int h, int first, int last)
 
 			col = x + 1;
 			row = y + 1 + i;
-			len = con_printf(col, row, "%s", eptr->name);
-			memset16(vmem + row * NCOLS + col + len, CHAR_ATTR(' ', attr), w - len - 2);
+			memset16(rowptr + col, CHAR_ATTR(' ', attr), w - 2);
+
+			if(eidx < fsview.num_entries) {
+				con_printf(col, row, "%s", eptr->name);
+				if(eptr->type == DT_DIR) {
+					con_printf(col + namecol_len + 1, row, "<DIR>");
+				} else {
+					con_printf(col + namecol_len + 1, row, "%8s", fsizestr(eptr->size));
+				}
+			}
+
+			attr = (attr & 0xf0) | COL_FSVIEW_FRM;
+			rowptr[namecol_len] = CHAR_ATTR(G_VLINE, attr);
 		}
 
 		eidx++;
 		eptr++;
+		rowptr += NCOLS;
 	}
 }
 
@@ -301,6 +340,7 @@ static void draw_frame(const char *title, int x, int y, int w, int h, unsigned c
 	ptr[0] = CHAR_ATTR(G_UL_HDBL, attr);
 	con_printf(x + 1, y, " %s ", title);
 	memset16(ptr + tlen + 3, CHAR_ATTR(G_HDBL, attr), w - tlen - 4);
+	ptr[w - SIZECOL_LEN - 2] = CHAR_ATTR(G_T_HDBL_TEE, attr);
 	ptr[w - 1] = CHAR_ATTR(G_UR_HDBL, attr);
 
 	ptr += NCOLS;
@@ -314,6 +354,7 @@ static void draw_frame(const char *title, int x, int y, int w, int h, unsigned c
 	ptr[0] = CHAR_ATTR(G_LL_CORNER, attr);
 	ptr[w - 1] = CHAR_ATTR(G_LR_CORNER, attr);
 	memset16(ptr + 1, CHAR_ATTR(G_HLINE, attr), w - 2);
+	ptr[w - SIZECOL_LEN - 2] = CHAR_ATTR(G_B_TEE, attr);
 }
 
 static void invalidate(int idx)

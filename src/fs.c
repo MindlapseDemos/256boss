@@ -141,6 +141,16 @@ int fs_close(struct fs_node *node)
 	return 0;
 }
 
+long fs_filesize(struct fs_node *node)
+{
+	struct fs_operations *fsop = node->fs->fsop;
+
+	if(node->type != FSNODE_FILE) {
+		return -1;
+	}
+	return fsop->fsize(node);
+}
+
 int fs_seek(struct fs_node *node, int offs, int whence)
 {
 	struct fs_operations *fsop = node->fs->fsop;

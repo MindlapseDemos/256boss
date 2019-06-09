@@ -21,6 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 struct fsview_dirent {
 	char *name;
 	int type;
+	unsigned long size;
 };
 
 struct fsview {

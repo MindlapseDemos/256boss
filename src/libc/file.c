@@ -96,6 +96,11 @@ int fclose(FILE *fp)
 	return 0;
 }
 
+long filesize(FILE *fp)
+{
+	return fs_filesize(fp->fsn);
+}
+
 int fseek(FILE *fp, long offset, int from)
 {
 	if(!fp) {
