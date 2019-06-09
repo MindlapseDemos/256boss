@@ -32,7 +32,7 @@ const char *fsizestr(size_t sz)
 	}
 
 	uidx = 0;
-	while(sz > 1024 && uidx < sizeof units / sizeof *units - 1) {
+	while(sz >= 1024 && uidx < sizeof units / sizeof *units - 1) {
 		frac = ((sz & 0x3ff) * 10 + 512) >> 10;
 		sz >>= 10;
 		uidx++;
