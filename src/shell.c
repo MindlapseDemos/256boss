@@ -261,7 +261,7 @@ static int cmd_pwd(int argc, char **argv)
 	return 0;
 }
 
-static void list_dir(DIR *dir)
+static void list_dir(DIR *dir, int longlst)
 {
 	struct dirent *dent;
 	while((dent = readdir(dir))) {
@@ -302,7 +302,7 @@ static int cmd_list(int argc, char **argv)
 				printf("failed to open directory: %s\n", argv[i]);
 				return -1;
 			}
-			list_dir(dir);
+			list_dir(dir, opt_long);
 			closedir(dir);
 			num_listed++;
 		}
@@ -313,7 +313,7 @@ static int cmd_list(int argc, char **argv)
 			printf("failed to open current directory\n");
 			return -1;
 		}
-		list_dir(dir);
+		list_dir(dir, opt_long);
 		closedir(dir);
 		return -1;
 	}

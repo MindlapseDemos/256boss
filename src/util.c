@@ -16,6 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include <stdio.h>
+#include <string.h>
 #include "util.h"
 
 const char *fsizestr(size_t sz)
@@ -38,4 +39,12 @@ const char *fsizestr(size_t sz)
 	}
 	sprintf(buf, "%lu.%lu%s", (unsigned long)sz, (unsigned long)frac, units[uidx]);
 	return buf;
+}
+
+int has_suffix(const char *name, const char *suffix)
+{
+	char *s = strrchr(name, '.');
+	if(!s) return 0;
+
+	return strcasecmp(s, suffix) == 0;
 }

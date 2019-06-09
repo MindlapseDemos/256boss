@@ -55,8 +55,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #define COL_FSVIEW_BG		BLACK
 #define COL_FSVIEW_FRM		YELLOW
+#define COL_FSVIEW_SELBAR	BROWN
 #define COL_FSVIEW_FILE		LTGREY
 #define COL_FSVIEW_DIR		WHITE
+#define COL_FSVIEW_EXEC_256	LTGREEN
+#define COL_FSVIEW_EXEC		LTRED
 
 static void init_scr(void);
 static int openfile(const char *path);
@@ -236,9 +239,7 @@ end:
 
 static int openfile(const char *path)
 {
-	char *suffix = strrchr(path, '.');
-
-	if(strcasecmp(suffix, ".com") == 0) {
+	if(has_suffix(path, ".com")) {
 		if(load_com_binary(path) == -1) {
 			return -1;
 		}
@@ -327,10 +328,17 @@ static void draw_dirview(int x, int y, int w, int h, int first, int last)
 
 			if(eidx < fsview.num_entries && eptr->type != DT_DIR) {
 				attr = attr_file;
+				if(has_suffix(eptr->name, ".com")) {
+					if(eptr->size <= 256) {
+						attr = (attr & 0xf0) | COL_FSVIEW_EXEC_256;
+					} else {
+						attr = (attr & 0xf0) | COL_FSVIEW_EXEC;
+					}
+				}
 			}
 
 			if(eidx == fsview.cursel) {
-				attr = (attr & 0xf) | (BROWN << 4);
+				attr = (attr & 0xf) | (COL_FSVIEW_SELBAR << 4);
 			}
 			con_setattr(attr);
 

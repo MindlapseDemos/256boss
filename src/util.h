@@ -22,4 +22,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 const char *fsizestr(size_t sz);
 
+int has_suffix(const char *name, const char *suffix);
+
 #endif	/* UTIL_H_ */
