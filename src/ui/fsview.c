@@ -158,7 +158,7 @@ int fsv_activate(struct fsview *fsv)
 	}
 
 	if(fsv->openfile) {
-		return fsv->openfile(fsvent->name);
+		return fsv->openfile(fsvent->name, 0);
 	}
 	return -1;
 }

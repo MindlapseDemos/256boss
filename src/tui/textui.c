@@ -62,10 +62,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define COL_FSVIEW_EXEC_256	LTGREEN
 #define COL_FSVIEW_EXEC		LTRED
 
+enum { OPEN_NOEXEC = 1 };
+
 static void init_scr(void);
 static void fsview_draw(void);
 static int fsview_keypress(int c);
-static int openfile(const char *path);
+static int openfile(const char *path, unsigned int oflags);
 static void draw_topbar(void);
 static void draw_clock(void);
 static void draw_statusbar(void);
@@ -160,9 +162,10 @@ int textui(void)
 
 		draw();
 		if(dirty & DIRTY_TITLE) {
-			dirty &= ~DIRTY_TITLE;
 			draw_topbar();
+			dirty &= ~DIRTY_TITLE;
 		}
+		draw_clock();
 	}
 
 end:
@@ -287,6 +290,18 @@ static int fsview_keypress(int c)
 		cancel_search();
 		break;
 
+	case KB_F5:
+		if(fsview.cursel >= 0) {
+			struct fsview_dirent *item = fsview.entries + fsview.cursel;
+			if(item->type == DT_REG) {
+				if(openfile(item->name, OPEN_NOEXEC) != -1) {
+					invalidate(-1);
+					cancel_search();
+				}
+			}
+		}
+		break;
+
 	case 27:
 		cancel_search();
 		break;
@@ -309,9 +324,9 @@ static int fsview_keypress(int c)
 }
 
 
-static int openfile(const char *path)
+static int openfile(const char *path, unsigned int oflags)
 {
-	if(has_suffix(path, ".com")) {
+	if(!(oflags & OPEN_NOEXEC) && has_suffix(path, ".com")) {
 		if(load_com_binary(path) == -1) {
 			return -1;
 		}
@@ -324,6 +339,7 @@ static int openfile(const char *path)
 		if(txview_open(path) != -1) {
 			draw = txview_draw;
 			keypress = txview_keypress;
+			return 0;
 		}
 	}
 	return -1;
@@ -350,7 +366,7 @@ static void draw_clock(void)
 	struct tm *tm;
 
 	t = time(0);
-	if(t != prev_t) {
+	if(t != prev_t || (dirty & DIRTY_TITLE)) {
 		tm = localtime(&t);
 
 		con_setattr(ATTR_TOPBAR);

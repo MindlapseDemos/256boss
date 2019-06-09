@@ -34,7 +34,7 @@ struct fsview {
 
 	int cursel;
 
-	int (*openfile)(const char *path);
+	int (*openfile)(const char *path, unsigned int flags);
 };
 
 struct fsview fsview;

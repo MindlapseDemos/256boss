@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <string.h>
 #include <limits.h>
 #include <ctype.h>
+#include <assert.h>
 #include "txview.h"
 #include "contty.h"
 #include "keyb.h"
@@ -108,6 +109,16 @@ int txview_keypress(int c)
 	switch(c) {
 	case 27:
 		return -1;
+
+	case '\t':
+		mode = (mode + 1) & 1;
+		dirty = 1;
+		if(title) {
+			memcpy(title + strlen(title) - 4, mode == FILE_TYPE_TEXT ? "txt" : "hex", 3);
+			txui_set_title(title);
+		}
+		scroll_x = scroll_y = 0;
+		break;
 
 	case KB_DOWN:
 		SCROLL(0, 1);
@@ -204,8 +215,56 @@ static void draw_text(void)
 	}
 }
 
+#define HEX_BYTES_PER_LINE	16
+#define HEX_TX_START	(10 + HEX_BYTES_PER_LINE * 3 + 2)
 static void draw_hex(void)
 {
+	int i, j, x, y, lidx, nlines;
+	unsigned char *ptr = (unsigned char*)fv->data + scroll_y * HEX_BYTES_PER_LINE;
+	unsigned char *end = (unsigned char*)fv->data + fv->size;
+	uint16_t *vptr = (uint16_t*)0xb8000 + NCOLS;
+
+	con_setattr(ATTR_TX);
+
+	nlines = (fv->size + HEX_BYTES_PER_LINE - 1) / HEX_BYTES_PER_LINE;
+
+	y = 1;
+	lidx = scroll_y;
+	for(i=0; i<VIS_LINES; i++) {
+		if(lidx < nlines) {
+			x = con_printf(0, y, "%08x  ", lidx * HEX_BYTES_PER_LINE);
+			for(j=0; j<HEX_BYTES_PER_LINE; j++) {
+				if(ptr + j < end) {
+					int c = ptr[j];
+					x += con_printf(x, y, "%02x ", c);
+					if((j & 7) == 7) {
+						con_putchar_scr(x++, y, ' ');
+					}
+				}
+			}
+
+			if(x < HEX_TX_START) {
+				int fill = HEX_TX_START - x;
+				assert(fill > 0);
+				memset16(vptr + x, CHAR_ATTR(' ', ATTR_TX), fill);
+				x += fill;
+			}
+
+			con_putchar_scr(x++, y, G_VLINE);
+			for(j=0; j<HEX_BYTES_PER_LINE; j++) {
+				int c = ptr + j < end ? ptr[j] : ' ';
+				if(!isprint(c)) c = '.';
+				con_putchar_scr(x++, y, c);
+			}
+			con_printf(x, y, "%c  ", G_VLINE);
+			ptr += HEX_BYTES_PER_LINE;
+		} else {
+			memset16(vptr, CHAR_ATTR(' ', ATTR_TX), NCOLS);
+		}
+		vptr += NCOLS;
+		lidx++;
+		y++;
+	}
 }
 
 static void scroll_text(int dx, int dy)
@@ -230,4 +289,14 @@ static void scroll_text(int dx, int dy)
 
 static void scroll_hex(int dy)
 {
+	int nlines = (fv->size + HEX_BYTES_PER_LINE - 1) / HEX_BYTES_PER_LINE;
+	int newy = scroll_y + dy;
+
+	if(newy > nlines - VIS_LINES) newy = nlines - VIS_LINES;
+	if(newy < 0) newy = 0;
+
+	if(newy == scroll_y) return;
+
+	scroll_y = newy;
+	dirty = 1;
 }
