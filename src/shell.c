@@ -30,6 +30,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "panic.h"
 #include "comloader.h"
 #include "video.h"
+#include "tui/textui.h"
 
 static void print_prompt(void);
 
@@ -222,6 +223,16 @@ void splash_screen(void);
 
 static int cmd_start(int argc, char **argv)
 {
+	if(argv[1]) {
+		if(strcmp(argv[1], "text") == 0) {
+			textui();
+			con_clear();
+			return 0;
+		}
+		printf("unknown option: %s\n", argv[1]);
+		return -1;
+	}
+
 	splash_screen();
 	con_clear();
 	return 0;
