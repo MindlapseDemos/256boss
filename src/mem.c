@@ -17,6 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include <stdio.h>
 #include <string.h>
+#include "config.h"
 #include "panic.h"
 #include "mem.h"
 #include "intr.h"
@@ -36,6 +37,8 @@ struct mem_range {
 	uint32_t start;
 	uint32_t size;
 };
+
+void move_stack(uint32_t newaddr);	/* defined in startup.s */
 
 static void mark_page(int pg, int used);
 static void add_memory(uint32_t start, size_t size);
@@ -63,7 +66,7 @@ static int bmsize, last_alloc_idx;
 
 void init_mem(void)
 {
-	int i, pg, max_pg = 0;
+	int i, pg, max_used_pg, max_pg = 0;
 	uint32_t used_end, start, end, sz, total = 0, rem;
 	const char *suffix[] = {"bytes", "KB", "MB", "GB"};
 
@@ -128,11 +131,17 @@ void init_mem(void)
 	/* mark all pages occupied by the bitmap as used */
 	used_end = (uint32_t)bitmap + bmsize - 1;
 
-	max_pg = ADDR_TO_PAGE(used_end);
-	printf("marking pages up to %x (page: %d) as used\n", used_end, max_pg);
-	for(i=0; i<=max_pg; i++) {
+	max_used_pg = ADDR_TO_PAGE(used_end);
+	printf("marking pages up to %x (page: %d) as used\n", used_end, max_used_pg);
+	for(i=0; i<=max_used_pg; i++) {
 		mark_page(i, USED);
 	}
+
+	/* allocate space for the stack at the top of RAM and move it there */
+	for(i=0; i<STACK_PAGES; i++) {
+		mark_page(max_pg - i, USED);
+	}
+	move_stack(PAGE_TO_ADDR(max_pg + 1));
 }
 
 int alloc_ppage(void)

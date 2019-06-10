@@ -98,9 +98,10 @@ int86:
 	pop %ds
 	# ignore fs and gs for now, don't think I'm going to need them
 
-	# move to the real-mode stack, accessible from ss=0
-	# just in case the BIOS call screws up our unreal mode
-	mov $0x7be0, %esp
+	# move to the real-mode stack, at the top of conventional memory
+	mov $0x9000, %sp
+	mov %sp, %ss
+	mov $0, %esp
 
 	# call 16bit interrupt
 int_op:	int $0
