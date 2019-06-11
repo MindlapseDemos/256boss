@@ -137,11 +137,14 @@ void init_mem(void)
 		mark_page(i, USED);
 	}
 
+#ifdef MOVE_STACK_RAMTOP
 	/* allocate space for the stack at the top of RAM and move it there */
+	printf("moving stack-top to: %x (%d pages)\n", PAGE_TO_ADDR(max_pg + 1), STACK_PAGES);
 	for(i=0; i<STACK_PAGES; i++) {
 		mark_page(max_pg - i, USED);
 	}
 	move_stack(PAGE_TO_ADDR(max_pg + 1));
+#endif
 }
 
 int alloc_ppage(void)

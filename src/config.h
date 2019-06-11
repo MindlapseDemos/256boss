@@ -26,7 +26,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #define AUTOSTART_GUI
 
+#define MOVE_STACK_RAMTOP
 /* allocate 64k for stack */
 #define STACK_PAGES		16
+
 
 #endif	/* PCBOOT_CONFIG_H_ */
