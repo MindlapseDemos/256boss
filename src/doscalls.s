@@ -23,3 +23,10 @@ dos_int21h_entry:
 	iret
 
 exit:	ljmp $0,$run_com_return
+
+	# print character in al
+	.global dos_int29h_entry
+dos_int29h_entry:
+	mov $0x0e, %ah
+	int $10
+	iret

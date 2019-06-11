@@ -50,6 +50,7 @@ int load_com_binary(const char *path)
 extern int run_com_entry;
 extern int rm_keyb_intr;
 extern int dos_int21h_entry;
+extern int dos_int29h_entry;
 
 struct vector {
 	uint16_t offs, seg;
@@ -76,6 +77,8 @@ int run_com_binary(void)
 	ivt[KBINTR].offs = (uint32_t)&rm_keyb_intr;
 	ivt[0x21].seg = 0;
 	ivt[0x21].offs = (uint32_t)&dos_int21h_entry;
+	ivt[0x29].seg = 0;
+	ivt[0x29].offs = (uint32_t)&dos_int29h_entry;
 
 	int86(COMRUN_INT, &regs);
 	set_intr_flag(intr);
