@@ -85,6 +85,7 @@ void splash_screen(void)
 	}
 
 end:
+	con_scr_enable();
 	set_vga_mode(3);
 	free(fb);
 }
@@ -94,6 +95,7 @@ static void setup_video(void)
 	int i;
 	con_clear();	/* this has the side-effect of resetting CRTC scroll regs */
 	set_vga_mode(0x13);
+	con_scr_disable();
 
 	for(i=0; i<CMAP_UI_SIZE; i++) {
 		int c = 255 * i / CMAP_UI_SIZE;

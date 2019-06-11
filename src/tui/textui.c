@@ -108,6 +108,7 @@ static void init_scr(void)
 	set_vga_mode(3);
 	con_show_cursor(0);
 	con_clear();	/* to reset scrolling */
+	con_scr_disable();
 
 	dirty_start = dirty_end = -1;
 	dirty = DIRTY_ALL;
@@ -169,6 +170,7 @@ int textui(void)
 	}
 
 end:
+	con_scr_enable();
 	con_setattr(orig_attr);
 	con_clear();
 	con_show_cursor(1);

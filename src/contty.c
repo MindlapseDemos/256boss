@@ -53,6 +53,7 @@ static unsigned char txattr = 0x07;
 static int start_line;
 static unsigned char cy0, cy1;
 static int curvis;
+static int scr_on = 1;
 
 int con_init(void)
 {
@@ -69,9 +70,20 @@ int con_init(void)
 	con_show_cursor(1);
 	crtc_setstart(0);
 	crtc_cursor(cursor_x, cursor_y);
+	scr_on = 1;
 #endif
 
 	return 0;
+}
+
+void con_scr_enable(void)
+{
+	scr_on = 1;
+}
+
+void con_scr_disable(void)
+{
+	scr_on = 0;
 }
 
 void con_show_cursor(int show)
@@ -156,37 +168,39 @@ static inline void linefeed(void)
 void con_putchar(int c)
 {
 #ifdef CON_TEXTMODE
-	switch(c) {
-	case '\n':
-		linefeed();
-	case '\r':
-		cursor_x = 0;
-		crtc_cursor(cursor_x, cursor_y);
-		break;
-
-	case '\t':
-		cursor_x = (cursor_x & 0x7) + 8;
-		if(cursor_x >= NCOLS) {
+	if(scr_on) {
+		switch(c) {
+		case '\n':
 			linefeed();
+		case '\r':
 			cursor_x = 0;
+			crtc_cursor(cursor_x, cursor_y);
+			break;
+
+		case '\t':
+			cursor_x = (cursor_x & 0x7) + 8;
+			if(cursor_x >= NCOLS) {
+				linefeed();
+				cursor_x = 0;
+			}
+			crtc_cursor(cursor_x, cursor_y);
+			break;
+
+		case '\b':
+			if(cursor_x > 0) cursor_x--;
+			con_putchar_scr(cursor_x, cursor_y, ' ');
+			crtc_cursor(cursor_x, cursor_y);
+			break;
+
+		default:
+			con_putchar_scr(cursor_x, cursor_y, c);
+
+			if(++cursor_x >= NCOLS) {
+				linefeed();
+				cursor_x = 0;
+			}
+			crtc_cursor(cursor_x, cursor_y);
 		}
-		crtc_cursor(cursor_x, cursor_y);
-		break;
-
-	case '\b':
-		if(cursor_x > 0) cursor_x--;
-		con_putchar_scr(cursor_x, cursor_y, ' ');
-		crtc_cursor(cursor_x, cursor_y);
-		break;
-
-	default:
-		con_putchar_scr(cursor_x, cursor_y, c);
-
-		if(++cursor_x >= NCOLS) {
-			linefeed();
-			cursor_x = 0;
-		}
-		crtc_cursor(cursor_x, cursor_y);
 	}
 #endif
 

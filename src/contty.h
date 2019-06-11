@@ -69,6 +69,8 @@ enum {
 
 
 int con_init(void);
+void con_scr_enable(void);
+void con_scr_disable(void);
 void con_show_cursor(int show);
 void con_cursor(int x, int y);
 void con_curattr(int shape, int blink);

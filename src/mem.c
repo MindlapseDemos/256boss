@@ -139,11 +139,11 @@ void init_mem(void)
 
 #ifdef MOVE_STACK_RAMTOP
 	/* allocate space for the stack at the top of RAM and move it there */
-	printf("moving stack-top to: %x (%d pages)\n", PAGE_TO_ADDR(max_pg + 1), STACK_PAGES);
+	printf("moving stack-top to: %x (%d pages)\n", PAGE_TO_ADDR(max_pg + 1) - 4, STACK_PAGES);
 	for(i=0; i<STACK_PAGES; i++) {
 		mark_page(max_pg - i, USED);
 	}
-	move_stack(PAGE_TO_ADDR(max_pg + 1));
+	move_stack(PAGE_TO_ADDR(max_pg + 1) - 4);
 #endif
 }
 
@@ -290,3 +290,17 @@ static void mark_page(int pg, int used)
 	}
 }
 
+void print_page_bitmap(void)
+{
+	int i;
+
+	for(i=0; i<bmsize/4; i++) {
+		if((i & 3) == 0) {
+			uint32_t pg = i * 32;
+			uint32_t addr = PAGE_TO_ADDR(pg);
+			printf("\n%5d [%08x]:", (int)pg, (unsigned long)addr);
+		}
+		printf(" %08x", bitmap[i]);
+	}
+	printf("\n");
+}

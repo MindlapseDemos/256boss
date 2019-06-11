@@ -46,6 +46,8 @@ static int cmd_cat(int argc, char **argv);
 
 static int cmd_run(int argc, char **argv);
 
+static int cmd_memdbg(int argc, char **argv);
+
 #define INBUF_SIZE		256
 
 static char inbuf[INBUF_SIZE];
@@ -104,6 +106,7 @@ static struct {
 	{"cat", cmd_cat},
 	{"clear", cmd_clear},
 	{"run", cmd_run},
+	{"memdbg", cmd_memdbg},
 	{"help", cmd_help},
 	{0, 0}
 };
@@ -385,5 +388,18 @@ static int cmd_run(int argc, char **argv)
 
 	set_vga_mode(3);
 	con_clear();
+	return 0;
+}
+
+void print_page_bitmap(void);	/* in mem.c */
+
+static int cmd_memdbg(int argc, char **argv)
+{
+	if(strcmp(argv[1], "pages") == 0) {
+		print_page_bitmap();
+	} else {
+		printf("usage: %s pages\n", argv[0]);
+		return -1;
+	}
 	return 0;
 }

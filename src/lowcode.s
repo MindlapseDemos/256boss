@@ -229,6 +229,7 @@ run_com_entry:
 	mov $0x100, %si
 	mov $0xfffe, %di
 	mov %di, %sp
+	movw $0, (%di)
 	mov $0x900, %bp
 
 	sti
