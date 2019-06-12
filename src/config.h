@@ -30,5 +30,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 /* allocate 64k for stack */
 #define STACK_PAGES		16
 
+#undef ENABLE_GDB_STUB
+
 
 #endif	/* PCBOOT_CONFIG_H_ */
