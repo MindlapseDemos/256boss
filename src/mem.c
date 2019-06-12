@@ -66,7 +66,7 @@ static int bmsize, last_alloc_idx;
 
 void init_mem(void)
 {
-	int i, pg, max_used_pg, max_pg = 0;
+	int i, pg, max_used_pg, end_pg = 0;
 	uint32_t used_end, start, end, sz, total = 0, rem;
 	const char *suffix[] = {"bytes", "KB", "MB", "GB"};
 
@@ -110,8 +110,8 @@ void init_mem(void)
 		total += sz;
 
 		pg = ADDR_TO_PAGE(end);
-		if(max_pg < pg) {
-			max_pg = pg;
+		if(end_pg < pg) {
+			end_pg = pg;
 		}
 	}
 
@@ -126,7 +126,7 @@ void init_mem(void)
 	/* size of the useful part of the bitmap in bytes padded to 4-byte
 	 * boundaries to allow 32bit at a time operations.
 	 */
-	bmsize = (max_pg / 32 + 1) * 4;
+	bmsize = (end_pg / 32) * 4;
 
 	/* mark all pages occupied by the bitmap as used */
 	used_end = (uint32_t)bitmap + bmsize - 1;
@@ -139,11 +139,16 @@ void init_mem(void)
 
 #ifdef MOVE_STACK_RAMTOP
 	/* allocate space for the stack at the top of RAM and move it there */
-	printf("moving stack-top to: %x (%d pages)\n", PAGE_TO_ADDR(max_pg + 1) - 4, STACK_PAGES);
+	printf("moving stack-top to: %x (%d pages)\n", PAGE_TO_ADDR(end_pg) - 4, STACK_PAGES);
 	for(i=0; i<STACK_PAGES; i++) {
-		mark_page(max_pg - i, USED);
+		int pg = end_pg - i - 1;
+		if(!IS_FREE(pg)) {
+			printf(" DBG %d: page %d not free\n", i, pg);
+		} else {
+			mark_page(end_pg - i, USED);
+		}
 	}
-	move_stack(PAGE_TO_ADDR(max_pg + 1) - 4);
+	move_stack(PAGE_TO_ADDR(end_pg) - 4);
 #endif
 }
 
