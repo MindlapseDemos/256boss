@@ -106,7 +106,7 @@ void *malloc(size_t sz)
 
 	/* did not find a free block, grab a new one */
 	npages = BYTES_TO_PAGES(total_sz);
-	if((pg0 = alloc_ppages(npages)) == -1) {
+	if((pg0 = alloc_ppages(npages, 0)) == -1) {
 		errno = ENOMEM;
 		return 0;
 	}
@@ -171,7 +171,7 @@ void *malloc(size_t sz)
 
 	if(total_sz > MAX_POOL_SIZE) {
 		/*printf("  allocation too big, hitting sys_alloc directly\n");*/
-		if((pg0 = alloc_ppages(BYTES_TO_PAGES(total_sz))) == -1) {
+		if((pg0 = alloc_ppages(BYTES_TO_PAGES(total_sz), 0)) == -1) {
 			errno = ENOMEM;
 			return 0;
 		}
@@ -213,7 +213,7 @@ void *malloc(size_t sz)
 
 	/* did not find a free block, add a new one */
 	pidx = NUM_POOLS - 1;
-	if((pg0 = alloc_ppages(MAX_POOL_PAGES)) == -1) {
+	if((pg0 = alloc_ppages(MAX_POOL_PAGES, 0)) == -1) {
 		errno = ENOMEM;
 		return 0;
 	}

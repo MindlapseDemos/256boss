@@ -139,22 +139,16 @@ void init_mem(void)
 
 #ifdef MOVE_STACK_RAMTOP
 	/* allocate space for the stack at the top of RAM and move it there */
-	printf("moving stack-top to: %x (%d pages)\n", PAGE_TO_ADDR(end_pg) - 4, STACK_PAGES);
-	for(i=0; i<STACK_PAGES; i++) {
-		int pg = end_pg - i - 1;
-		if(!IS_FREE(pg)) {
-			printf(" DBG %d: page %d not free\n", i, pg);
-		} else {
-			mark_page(end_pg - i, USED);
-		}
+	if((pg = alloc_ppages(STACK_PAGES, MEM_STACK)) != -1) {
+		printf("moving stack-top to: %x (%d pages)\n", PAGE_TO_ADDR(end_pg) - 4, STACK_PAGES);
+		move_stack(PAGE_TO_ADDR(pg + STACK_PAGES) - 4);
 	}
-	move_stack(PAGE_TO_ADDR(end_pg) - 4);
 #endif
 }
 
-int alloc_ppage(void)
+int alloc_ppage(int area)
 {
-	return alloc_ppages(1);
+	return alloc_ppages(1, area);
 }
 
 /* free_ppage marks the physical page, free in the allocation bitmap.
@@ -184,26 +178,34 @@ void free_ppage(int pg)
 }
 
 
-int alloc_ppages(int count)
+int alloc_ppages(int count, int area)
 {
-	int i, pg, idx, max, intr_state, found_free = 0;
+	int i, dir, pg, idx, max, intr_state, found_free = 0;
 
 	intr_state = get_intr_flag();
 	disable_intr();
 
-	idx = last_alloc_idx;
-	max = bmsize / 4;
+	if(area == MEM_STACK) {
+		idx = (bmsize - 1) / 4;
+		max = -1;
+		dir = -1;
+	} else {
+		idx = last_alloc_idx;
+		max = bmsize / 4;
+		dir = 1;
+	}
 
-	while(idx <= max) {
+	while(idx != max) {
 		/* if at least one bit is 0 then we have at least
 		 * one free page. find it and try to allocate a range starting from there
 		 */
 		if(bitmap[idx] != 0xffffffff) {
-			for(i=0; i<32; i++) {
-				pg = idx * 32 + i;
+			pg = idx * 32;
+			if(dir < 0) pg += 31;
 
+			for(i=0; i<32; i++) {
 				if(IS_FREE(pg)) {
-					if(!found_free) {
+					if(!found_free && dir > 0) {
 						last_alloc_idx = idx;
 						found_free = 1;
 					}
@@ -213,9 +215,10 @@ int alloc_ppages(int count)
 						return pg;
 					}
 				}
+				pg += dir;
 			}
 		}
-		idx++;
+		idx += dir;
 	}
 
 	set_intr_flag(intr_state);
