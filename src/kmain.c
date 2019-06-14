@@ -38,16 +38,27 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "shell.h"
 #include "ui/fsview.h"
 
+#ifdef ENABLE_GDB_STUB
+#include "serial.h"
+void set_debug_traps(void);
+#endif
+
 void splash_screen(void);
 
 static void mount_boot_fs(void);
 static void print_intr_state(void);
 
-
 void kmain(void)
 {
 	init_segm();
 	init_intr();
+
+#ifdef ENABLE_GDB_STUB
+	if(ser_open(GDB_SERIAL_PORT, 9600, SER_8N1) >= 0) {
+		set_debug_traps();
+		asm("int $3");
+	}
+#endif
 
 	con_init();
 	kb_init();

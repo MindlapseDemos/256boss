@@ -17,6 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include <stdio.h>
 #include <string.h>
+#include "config.h"
 #include "serial.h"
 #include "asmops.h"
 #include "intr.h"
@@ -318,6 +319,13 @@ static void recv_intr()
 			while(have_recv(base)) {
 				c = inb(base + UART_DATA);
 
+#ifdef ENABLE_GDB_STUB
+				if(c == 3 && i == GDB_SERIAL_PORT) {
+					asm("int $3");
+					continue;
+				}
+#endif
+
 				p->inbuf[p->inbuf_widx] = c;
 				p->inbuf_widx = BNEXT(p->inbuf_widx);
 
@@ -329,3 +337,15 @@ static void recv_intr()
 		}
 	}
 }
+
+#ifdef ENABLE_GDB_STUB
+void putDebugChar(int c)
+{
+	ser_putc(GDB_SERIAL_PORT, c);
+}
+
+int getDebugChar(void)
+{
+	return ser_getc(GDB_SERIAL_PORT);
+}
+#endif

@@ -16,6 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include <stdio.h>
+#include "config.h"
 #include "intr.h"
 #include "desc.h"
 #include "segm.h"
@@ -262,3 +263,10 @@ void end_of_irq(int irq)
 
 	set_intr_flag(intr_state);
 }
+
+#ifdef ENABLE_GDB_STUB
+void exceptionHandler(int id, void (*func)())
+{
+	set_intr_entry(id, func);
+}
+#endif

@@ -31,6 +31,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define STACK_PAGES		16
 
 #undef ENABLE_GDB_STUB
+#define GDB_SERIAL_PORT	0
 
 
 #endif	/* PCBOOT_CONFIG_H_ */
