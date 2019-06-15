@@ -1,6 +1,6 @@
 /*
 pcboot - bootable PC demo/game kernel
-Copyright (C) 2018  John Tsiombikas <nuclear@member.fsf.org>
+Copyright (C) 2018-2019  John Tsiombikas <nuclear@member.fsf.org>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,11 +19,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
+#include "config.h"
 #include "mem.h"
 #include "panic.h"
 
 #define SINGLE_POOL
-#define MALLOC_DEBUG
 
 struct mem_desc {
 	size_t size;
@@ -33,6 +34,11 @@ struct mem_desc {
 #endif
 	struct mem_desc *next;
 };
+
+#ifdef MALLOC_DEBUG
+static void check_cycles(struct mem_desc *mem);
+static void print_pool(void);
+#endif
 
 #define MAGIC_USED	0xdeadf00d
 #define MAGIC_FREE	0x1ee7d00d
@@ -68,6 +74,8 @@ static int pool_index(int sz)
 
 
 #ifdef SINGLE_POOL
+#define MIN_BLOCK_SIZE		(sizeof(struct mem_desc) * 2)
+
 void *malloc(size_t sz)
 {
 	int pg0, npages;
@@ -75,17 +83,25 @@ void *malloc(size_t sz)
 	struct mem_desc *mem, *rest, *prev, dummy;
 	int found = 0;
 
-	total_sz = sz + sizeof(struct mem_desc);
+	total_sz = (sz + sizeof(struct mem_desc) + 3) & 0xfffffffc;
 
 	dummy.next = pool;
 	prev = &dummy;
 	while(prev->next) {
 		mem = prev->next;
-		if(mem->size == total_sz) {
+		/* give the whole block to the allocation if mem->size == total_sz or
+		 * if it's larger, but not large enough to fit another mem_desc in there
+		 * for the new block that we're going to split off + some reasonable
+		 * amount of memory for the new block.
+		 */
+		if(mem->size >= total_sz && mem->size < total_sz + MIN_BLOCK_SIZE) {
 			prev->next = mem->next;
 			found = 1;
 			break;
 		}
+		/* if we have enough space, split the block and give the upper part
+		 * to the allocation
+		 */
 		if(mem->size > total_sz) {
 			void *ptr = (char*)mem + mem->size - total_sz;
 			mem->size -= total_sz;
@@ -119,7 +135,7 @@ void *malloc(size_t sz)
 	rest_sz = npages * 4096 - total_sz;
 	if(rest_sz > 0) {
 		rest = (struct mem_desc*)((char*)mem + total_sz);
-		rest->size = npages * 4096 - total_sz;
+		rest->size = rest_sz;
 		rest->next = 0;
 		rest->magic = MAGIC_USED;
 		free(DESC_PTR(rest));
@@ -130,7 +146,10 @@ void *malloc(size_t sz)
 
 void free(void *p)
 {
-	struct mem_desc *mem, *prev, dummy;
+	struct mem_desc *mem, *prev, *cur, dummy;
+	char *end;
+
+	printf("free(%p)\n", p);
 
 	if(!p) return;
 	mem = PTR_DESC(p);
@@ -143,36 +162,57 @@ void free(void *p)
 		}
 	}
 	mem->magic = MAGIC_FREE;
+	mem->next = 0;
+
+	/* nothing in the pool, just add this one */
+	if(!pool) {
+		pool = mem;
+		return;
+	}
+
+	end = (char*)mem + mem->size;
 
 	dummy.next = pool;
 	prev = &dummy;
 
 	while(prev->next) {
-		char *end = (char*)mem + mem->size;
-		if(end == (char*)prev->next) {
-			mem->size += prev->next->size;
-			mem->next = prev->next->next;
-			prev->next->magic = 0;
+		cur = prev->next;
+
+		/* block starts right at the end of mem: coalesce */
+		if((char*)cur == end) {
+			mem->size += cur->size;
+			mem->next = cur->next;
+			cur->magic = 0;
 			prev->next = mem;
-			return;
+			goto done;
 		}
-		if(end < (char*)prev->next) {
-			mem->next = prev->next;
+
+		/* block starts *after* the end of mem: add in front */
+		if((char*)cur > end) {
+			mem->next = cur;
 			prev->next = mem;
-			return;
+			goto done;
 		}
 
 		prev = prev->next;
 	}
 
-	if(prev != &dummy && (char*)prev + prev->size == (char*)mem) {
+	/* our block starts at the end of the last block in the pool: coalesce */
+	if((char*)prev + prev->size == (char*)mem) {
+		mem->magic = 0;
 		prev->size += mem->size;
-	} else {
-		prev->next = mem;
-		mem->next = 0;
+		goto done;
 	}
 
+	/* so our block starts after the end of the last block: append */
+	prev->next = mem;
+
+done:
 	pool = dummy.next;
+
+#ifdef MALLOC_DEBUG
+	print_pool();
+#endif
 }
 
 #else	/* !SINGLE_POOL */
@@ -322,6 +362,19 @@ static void check_cycles(struct mem_desc *mem)
 		mem = mem->next;
 	}
 }
+
+static void print_pool(void)
+{
+	struct mem_desc *mem = pool;
+
+	printf("DBG: malloc pool:\n");
+	while(mem) {
+		printf(" %p (%ld) [%x]\n", mem, mem->size, mem->magic);
+		mem = mem->next;
+
+		assert((uint32_t)mem != MAGIC_USED);
+	}
+}
 #endif	/* MALLOC_DEBUG */
 
 #ifndef SINGLE_POOL
@@ -370,7 +423,9 @@ static int add_to_pool(struct mem_desc *mem)
 	mem->next = pools[pidx];
 	pools[pidx] = mem;
 
+#ifdef MALLOC_DEBUG
 	check_cycles(pools[pidx]);
+#endif
 	return 0;
 }
 #endif	/* !def SINGLE_POOL */

@@ -33,5 +33,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #undef ENABLE_GDB_STUB
 #define GDB_SERIAL_PORT	0
 
+#undef MALLOC_DEBUG
 
 #endif	/* PCBOOT_CONFIG_H_ */
