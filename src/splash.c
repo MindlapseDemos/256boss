@@ -20,51 +20,74 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
+#include <inttypes.h>
 #include "asmops.h"
 #include "keyb.h"
 #include "video.h"
 #include "image.h"
 #include "contty.h"
+#include "timer.h"
 #include "tui/textui.h"
 
 #define DATA_PATH	"/.data/"
 
 static void setup_video(void);
 static void draw(void);
+static int precalc_tunnel(void);
 
 static unsigned char *fb;
 static unsigned char *vmem = (unsigned char*)0xa0000;
-static struct image img;
+static struct image img_ui, img_tex;
+static unsigned long start_ticks;
 
-#define CMAP_UI_SIZE	64
-#define CMAP_IMG_START	CMAP_UI_SIZE
-#define CMAP_IMG_SIZE	(256 - CMAP_IMG_START)
+
+#define HEADER_HEIGHT	17
+#define FX_HEIGHT		(200 - HEADER_HEIGHT)
+#define FX_TEX_SIZE		32
+#define FX_TEX_PITCH	32
+
+#define FX_PAL_OFFS		64
+#define FX_PAL_SIZE		32
+#define FX_FOG_LEVELS	6
+
+
+#define TUN_WIDTH		450
+#define TUN_HEIGHT		300
+#define TUN_PAN_XSZ		(TUN_WIDTH - 320)
+#define TUN_PAN_YSZ		(TUN_HEIGHT - FX_HEIGHT)
+struct tunnel {
+	unsigned short x, y;
+	unsigned char fog;
+} *tunlut;
+
 
 void splash_screen(void)
 {
-	int i;
-	unsigned char *pptr;
-
 	if(!(fb = malloc(64000))) {
-		printf("failed to allocate back buffer\n");
+		printf("splash_screen: failed to allocate back buffer\n");
 		return;
 	}
 
-	if(load_image(&img, DATA_PATH "splash.png") == -1 || img.bpp != 8) {
-		printf("failed to load splash.png\n");
-		free(fb);
-		return;
+	tunlut = 0;
+	img_ui.pixels = img_tex.pixels = 0;
+
+	if(precalc_tunnel() == -1) {
+		goto err;
 	}
-	if(img.cmap_ncolors > CMAP_IMG_SIZE) {
-		printf("warning: splash.png has %d colors (%d allocated for images)\n",
-				img.cmap_ncolors, CMAP_IMG_SIZE);
+
+	if(load_image(&img_ui, DATA_PATH "256boss.png") == -1 || img_ui.bpp != 8) {
+		printf("splash_screen: failed to load UI image\n");
+		goto err;
 	}
-	pptr = img.pixels;
-	for(i=0; i<img.width * img.height; i++) {
-		*pptr++ += CMAP_IMG_START;
+	if(load_image(&img_tex, DATA_PATH "sstex1.png") == -1 || img_tex.bpp != 8) {
+		printf("splash_screen: failed to load texture\n");
+		goto err;
 	}
+	image_color_offset(&img_tex, FX_PAL_OFFS);
 
 	setup_video();
+	start_ticks = nticks;
 
 	for(;;) {
 		int c;
@@ -87,32 +110,111 @@ void splash_screen(void)
 end:
 	con_scr_enable();
 	set_vga_mode(3);
+err:
 	free(fb);
+	free(tunlut);
+	free(img_ui.pixels);
+	free(img_tex.pixels);
 }
 
 static void setup_video(void)
 {
-	int i;
+	int i, j;
+	struct cmapent *col;
+
 	con_clear();	/* this has the side-effect of resetting CRTC scroll regs */
 	set_vga_mode(0x13);
 	con_scr_disable();
 
-	for(i=0; i<CMAP_UI_SIZE; i++) {
-		int c = 255 * i / CMAP_UI_SIZE;
-		set_pal_entry(i, c, c, c);
+	col = img_ui.cmap;
+	for(i=0; i<img_ui.cmap_ncolors; i++) {
+		set_pal_entry(i, col->r, col->g, col->b);
+		col++;
 	}
 
-	for(i=0; i<img.cmap_ncolors; i++) {
-		set_pal_entry(i + CMAP_IMG_START, img.cmap[i].r, img.cmap[i].g, img.cmap[i].b);
+	col = img_tex.cmap;
+	for(i=0; i<img_tex.cmap_ncolors; i++) {
+		for(j=0; j<FX_FOG_LEVELS; j++) {
+			int r = (int)col->r * (FX_FOG_LEVELS - j) / FX_FOG_LEVELS;
+			int g = (int)col->g * (FX_FOG_LEVELS - j) / FX_FOG_LEVELS;
+			int b = (int)col->b * (FX_FOG_LEVELS - j) / FX_FOG_LEVELS;
+			set_pal_entry(i + FX_PAL_OFFS + FX_PAL_SIZE * j, r, g, b);
+		}
+		col++;
 	}
 }
 
 static void draw(void)
 {
-	int imgbytes = img.scansz * img.height;
+	int i, j, tx, ty, xoffs, yoffs;
+	struct tunnel *tun;
+	unsigned char *pptr;
+	unsigned long msec = MSEC_TO_TICKS(nticks - start_ticks);
+	float t;
 
-	memcpy(fb, img.pixels, imgbytes);
+	t = (float)msec / 1000.0f;
+	xoffs = (int)(cos(t * 3.0) * (TUN_PAN_XSZ / 2) + (TUN_PAN_XSZ / 2));
+	yoffs = (int)(sin(t * 4.0) * (TUN_PAN_YSZ / 2) + (TUN_PAN_YSZ / 2));
+
+	memcpy(fb, img_ui.pixels, HEADER_HEIGHT * 320);
+
+	tun = tunlut + yoffs * TUN_WIDTH + xoffs;
+	pptr = fb + HEADER_HEIGHT * 320;
+	for(i=0; i<FX_HEIGHT; i++) {
+		for(j=0; j<320; j++) {
+			if(tun->fog >= FX_FOG_LEVELS) {
+				*pptr++ = 0;
+			} else {
+				tx = ((int)tun->x * FX_TEX_SIZE) >> 10;
+				ty = ((int)tun->y * FX_TEX_SIZE) >> 12;
+
+				tx = (tx + msec * 4) >> 3;
+				ty = (ty + msec * 8) >> 3;
+
+				tx &= FX_TEX_SIZE - 1;
+				ty &= FX_TEX_SIZE - 1;
+				*pptr++ = img_tex.pixels[ty * FX_TEX_PITCH + tx] + tun->fog * FX_PAL_SIZE;
+			}
+			tun++;
+		}
+		tun += TUN_WIDTH - 320;
+	}
 
 	wait_vsync();
 	memcpy(vmem, fb, 64000);
+}
+
+#define TUN_ASPECT	((float)TUN_WIDTH / (float)TUN_HEIGHT)
+static int precalc_tunnel(void)
+{
+	int i, j;
+	struct tunnel *tun;
+
+	if(!(tunlut = malloc(TUN_WIDTH * TUN_HEIGHT * sizeof *tunlut))) {
+		printf("failed to allocate tunnel buffer\n");
+		return -1;
+	}
+	tun = tunlut;
+
+	for(i=0; i<TUN_HEIGHT; i++) {
+		float dy = 2.0f * (float)i / (float)TUN_HEIGHT - 1.0f;
+		for(j=0; j<TUN_WIDTH; j++) {
+			float dx = (2.0f * (float)j / (float)TUN_WIDTH - 1.0f) * TUN_ASPECT;
+			float tu = atan2(dy, dx) / M_PI * 0.5 + 0.5;
+			float r = sqrt(dx * dx + dy * dy);
+			float tv = r == 0.0f ? 65536.0f : 1.0f / r;
+
+			float dither_tv = tv + (0.8 * ((float)rand() / (float)RAND_MAX) - 0.4);
+			int fog = (int)(dither_tv * 1.15 - 0.25);
+			if(fog < 0) fog = 0;
+
+			tun->x = (unsigned short)(tu * 65536.0f);
+			tun->y = (unsigned short)(tv * 65536.0f);
+
+			tun->fog = fog >= FX_FOG_LEVELS ? FX_FOG_LEVELS : fog;
+			tun++;
+		}
+	}
+
+	return 0;
 }
