@@ -149,8 +149,6 @@ void free(void *p)
 	struct mem_desc *mem, *prev, *cur, dummy;
 	char *end;
 
-	printf("free(%p)\n", p);
-
 	if(!p) return;
 	mem = PTR_DESC(p);
 
