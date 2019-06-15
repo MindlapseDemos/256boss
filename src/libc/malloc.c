@@ -71,8 +71,8 @@ static int pool_index(int sz)
 void *malloc(size_t sz)
 {
 	int pg0, npages;
-	size_t total_sz;
-	struct mem_desc *mem, *prev, dummy;
+	size_t total_sz, rest_sz;
+	struct mem_desc *mem, *rest, *prev, dummy;
 	int found = 0;
 
 	total_sz = sz + sizeof(struct mem_desc);
@@ -111,9 +111,20 @@ void *malloc(size_t sz)
 		return 0;
 	}
 	mem = PAGE_TO_PTR(pg0);
-	mem->size = npages * 4096;
+	mem->size = total_sz;
 	mem->next = 0;
 	mem->magic = MAGIC_USED;
+
+	/* add the rest of the block to pool */
+	rest_sz = npages * 4096 - total_sz;
+	if(rest_sz > 0) {
+		rest = (struct mem_desc*)((char*)mem + total_sz);
+		rest->size = npages * 4096 - total_sz;
+		rest->next = 0;
+		rest->magic = MAGIC_USED;
+		free(DESC_PTR(rest));
+	}
+
 	return DESC_PTR(mem);
 }
 
@@ -153,10 +164,15 @@ void free(void *p)
 
 		prev = prev->next;
 	}
-	pool = dummy.next;
 
-	prev->next = mem;
-	mem->next = 0;
+	if(prev != &dummy && (char*)prev + prev->size == (char*)mem) {
+		prev->size += mem->size;
+	} else {
+		prev->next = mem;
+		mem->next = 0;
+	}
+
+	pool = dummy.next;
 }
 
 #else	/* !SINGLE_POOL */
