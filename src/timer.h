@@ -18,6 +18,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef _TIMER_H_
 #define _TIMER_H_
 
+#include "config.h"
+
 #define MSEC_TO_TICKS(ms)	((ms) * TICK_FREQ_HZ / 1000)
 #define TICKS_TO_MSEC(tk)	((tk) * 1000 / TICK_FREQ_HZ)
 
