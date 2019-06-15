@@ -252,3 +252,13 @@ void blit_image(struct image *src, int sx, int sy, int w, int h, struct image *d
 		sptr += src->pitch;
 	}
 }
+
+void image_color_offset(struct image *img, int offs)
+{
+	int i, sz = img->height * img->pitch;
+	unsigned char *pptr = img->pixels;
+
+	for(i=0; i<sz; i++) {
+		*pptr++ += offs;
+	}
+}

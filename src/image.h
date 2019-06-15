@@ -40,4 +40,6 @@ int cmp_image(struct image *a, struct image *b);
 
 void blit_image(struct image *src, int sx, int sy, int w, int h, struct image *dst, int dx, int dy);
 
+void image_color_offset(struct image *img, int offs);
+
 #endif	/* IMAGE_H_ */
