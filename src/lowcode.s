@@ -225,6 +225,8 @@ run_com_entry:
 
 	# replicate initial register values COM files start with under MS-DOS
 	xor %ax, %ax
+	xor %bx, %bx
+	xor %dx, %dx
 	mov $0xff, %cx
 	mov $0x100, %si
 	mov $0xfffe, %di
