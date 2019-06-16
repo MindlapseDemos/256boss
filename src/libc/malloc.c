@@ -339,6 +339,7 @@ void *realloc(void *ptr, size_t size)
 	if(!(newp = malloc(size))) {
 		return 0;
 	}
+	memcpy(newp, ptr, mem->size);
 	free(ptr);
 	return newp;
 }

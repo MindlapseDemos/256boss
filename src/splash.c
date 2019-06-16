@@ -44,13 +44,15 @@ static unsigned long start_ticks;
 
 #define HEADER_HEIGHT	17
 #define FX_HEIGHT		(200 - HEADER_HEIGHT)
-#define FX_TEX_SIZE		32
-#define FX_TEX_PITCH	32
+#define FX_TEX_SIZE		128
+#define FX_TEX_PITCH	FX_TEX_SIZE
 
 #define FX_PAL_OFFS		64
 #define FX_PAL_SIZE		32
 #define FX_FOG_LEVELS	6
 
+#define FX_TEX_USCALE	0.5
+#define FX_TEX_VSCALE	0.5
 
 #define TUN_WIDTH		450
 #define TUN_HEIGHT		300
@@ -80,7 +82,7 @@ void splash_screen(void)
 		printf("splash_screen: failed to load UI image\n");
 		goto err;
 	}
-	if(load_image(&img_tex, DATA_PATH "sstex1.png") == -1 || img_tex.bpp != 8) {
+	if(load_image(&img_tex, DATA_PATH "sstex2.png") == -1 || img_tex.bpp != 8) {
 		printf("splash_screen: failed to load texture\n");
 		goto err;
 	}
@@ -208,8 +210,8 @@ static int precalc_tunnel(void)
 			int fog = (int)(dither_tv * 1.15 - 0.25);
 			if(fog < 0) fog = 0;
 
-			tun->x = (unsigned short)(tu * 65536.0f);
-			tun->y = (unsigned short)(tv * 65536.0f);
+			tun->x = (unsigned short)(tu * 65536.0f * FX_TEX_USCALE);
+			tun->y = (unsigned short)(tv * 65536.0f * FX_TEX_VSCALE);
 
 			tun->fog = fog >= FX_FOG_LEVELS ? FX_FOG_LEVELS : fog;
 			tun++;
