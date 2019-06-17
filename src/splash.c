@@ -34,7 +34,15 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 static void setup_video(void);
 static void draw(void);
+static void draw_tunnel(unsigned long msec);
+static void draw_menu(unsigned long msec);
 static int precalc_tunnel(void);
+/*static int precalc_floor(void);*/
+
+static void draw_rect(unsigned char *fb, int cx, int cy, int r, int col);
+static void draw_hline(unsigned char *fb, int x, int y, int sz, int col);
+static void draw_vline(unsigned char *fb, int x, int y, int sz, int col);
+
 
 static unsigned char *fb;
 static unsigned char *vmem = (unsigned char*)0xa0000;
@@ -61,7 +69,7 @@ static unsigned long start_ticks;
 struct tunnel {
 	unsigned short x, y;
 	unsigned char fog;
-} *tunlut;
+} *tunlut/*, *floorlut*/;
 
 
 void splash_screen(void)
@@ -77,6 +85,11 @@ void splash_screen(void)
 	if(precalc_tunnel() == -1) {
 		goto err;
 	}
+	/*
+	if(precalc_floor() == -1) {
+		goto err;
+	}
+	*/
 
 	if(load_image(&img_ui, DATA_PATH "256boss.png") == -1 || img_ui.bpp != 8) {
 		printf("splash_screen: failed to load UI image\n");
@@ -148,10 +161,32 @@ static void setup_video(void)
 
 static void draw(void)
 {
+	unsigned long msec = MSEC_TO_TICKS(nticks - start_ticks);
+
+	draw_tunnel(msec);
+	draw_menu(msec);
+
+	wait_vsync();
+	memcpy(vmem, fb, 64000);
+}
+
+static void draw_menu(unsigned long msec)
+{
+	int i;
+	int sz = msec;
+
+	if(sz > 20) sz = 20;
+
+	for(i=0; i<3; i++) {
+		draw_rect(fb, 30, 60 * i + 50, sz, 63);
+	}
+}
+
+static void draw_tunnel(unsigned long msec)
+{
 	int i, j, tx, ty, xoffs, yoffs;
 	struct tunnel *tun;
 	unsigned char *pptr;
-	unsigned long msec = MSEC_TO_TICKS(nticks - start_ticks);
 	float t;
 
 	t = (float)msec / 1000.0f;
@@ -181,9 +216,6 @@ static void draw(void)
 		}
 		tun += TUN_WIDTH - 320;
 	}
-
-	wait_vsync();
-	memcpy(vmem, fb, 64000);
 }
 
 #define TUN_ASPECT	((float)TUN_WIDTH / (float)TUN_HEIGHT)
@@ -219,4 +251,89 @@ static int precalc_tunnel(void)
 	}
 
 	return 0;
+}
+
+/*
+static int precalc_floor(void)
+{
+	int i, j;
+	struct tunnel *flut;
+
+	if(!(floorlut = malloc(TUN_WIDTH * TUN_HEIGHT * sizeof *floorlut))) {
+		printf("failed to allocate floor buffer\n");
+		return -1;
+	}
+	flut = floorlut;
+
+	for(i=0; i<TUN_HEIGHT; i++) {
+		for(j=0; j<TUN_WIDTH; j++) {
+			float x = (float)j / TUN_WIDTH - 0.5f;
+			float z = (float)(i + 40) / TUN_HEIGHT;
+			float tv = 1.0 / z;
+			float tu = x * 0.4 / z;
+
+			float dither_tv = tv + (0.8 * ((float)rand() / (float)RAND_MAX) - 0.4);
+			int fog = (int)(dither_tv * 1.15 - 0.25);
+			if(fog < 0) fog = 0;
+
+			flut->x = (unsigned short)(tu * 65536.0f * FX_TEX_USCALE);
+			flut->y = (unsigned short)(tv * 65536.0f * FX_TEX_VSCALE);
+
+			flut->fog = fog >= FX_FOG_LEVELS ? FX_FOG_LEVELS : fog;
+			flut++;
+		}
+	}
+
+	return 0;
+}
+*/
+
+static void draw_rect(unsigned char *fb, int cx, int cy, int r, int col)
+{
+	int x0, y0, x1, y1;
+
+	x0 = cx - r;
+	x1 = cx + r;
+	y0 = cy - r;
+	y1 = cy + r;
+
+	draw_hline(fb, x0, y0, x1 - x0, col);
+	draw_hline(fb, x0, y1, x1 - x0, col);
+	draw_vline(fb, x0, y0, y1 - y0, col);
+	draw_vline(fb, x1, y0, y1 - y0, col);
+}
+
+
+static void draw_hline(unsigned char *fb, int x, int y, int sz, int col)
+{
+	if(y < 0 || y >= 200) return;
+	if(x < 0) {
+		sz += x;
+		x = 0;
+	}
+	if(x + sz >= 320) {
+		sz = 320 - x;
+	}
+	memset(fb + y * 320 + x, col, sz);
+}
+
+static void draw_vline(unsigned char *fb, int x, int y, int sz, int col)
+{
+	int i;
+
+	if(x < 0 || x >= 320) return;
+	if(y < 0) {
+		sz += y;
+		y = 0;
+	}
+	if(y + sz >= 200) {
+		sz = 200 - y;
+	}
+
+	fb += y * 320 + x;
+
+	for(i=0; i<sz; i++) {
+		*fb = col;
+		fb += 320;
+	}
 }
