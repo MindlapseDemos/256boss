@@ -1,15 +1,12 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
+#include <alloca.h>
 #include "image.h"
 
-struct sprite {
-	int width, height;
-	unsigned char *data;
-	char *code;
-
-	struct sprite *next;
-};
-
-int proc_file(const char *fname);
+int csprite(struct image *img, int x, int y, int xsz, int ysz);
+int proc_sheet(const char *fname);
 void print_usage(const char *argv0);
 
 int tile_xsz, tile_ysz;
@@ -55,7 +52,7 @@ int main(int argc, char **argv)
 			}
 
 		} else {
-			if(proc_file(argv[i]) == -1) {
+			if(proc_sheet(argv[i]) == -1) {
 				return 1;
 			}
 		}
@@ -64,12 +61,10 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-int proc_file(const char *fname)
+int proc_sheet(const char *fname)
 {
-	int i, j, num_xtiles, num_ytiles;
+	int i, j, num_xtiles, num_ytiles, xsz, ysz;
 	struct image img;
-	struct sprite spr;
-	unsigned char *pptr;
 
 	if(load_image(&img, fname) == -1) {
 		fprintf(stderr, "failed to load image: %s\n", fname);
@@ -78,19 +73,106 @@ int proc_file(const char *fname)
 
 	if(tile_xsz <= 0) {
 		num_xtiles = num_ytiles = 1;
-		spr.width = img.width;
-		spr.height = img.height;
+		xsz = img.width;
+		ysz = img.height;
 	} else {
 		num_xtiles = img.width / tile_xsz;
-		num_ytiles = img.help / tile_ysz;
-		spr.width = tile_xsz;
-		spr.height = tile_ysz;
+		num_ytiles = img.height / tile_ysz;
+		xsz = tile_xsz;
+		ysz = tile_ysz;
 	}
 
-	pptr = img.pixels;
 	for(i=0; i<num_ytiles; i++) {
 		for(j=0; j<num_xtiles; j++) {
-			csprite(&spr, pptr, img.width);
+			csprite(&img, j * xsz, i * ysz, xsz, ysz);
+		}
+	}
+
+	return 0;
+}
+
+enum {
+	CSOP_SKIP,
+	CSOP_FILL,
+	CSOP_COPY,
+	CSOP_ENDL
+};
+
+struct csop {
+	unsigned char op, val;
+	int len;
+};
+
+int csprite(struct image *img, int x, int y, int xsz, int ysz)
+{
+	int i, j, numops, mode = -1, new_mode, start = -1;
+	unsigned char *pptr = img->pixels + y * img->scansz + x;
+	struct csop *ops, *optr;
+
+	ops = optr = alloca(xsz * ysz * sizeof *ops);
+
+	for(i=0; i<ysz; i++) {
+		mode = -1;
+		start = -1;
+
+		if(i > 0) {
+			optr++->op = CSOP_ENDL;
+		}
+
+		for(j=0; j<xsz; j++) {
+			if(*pptr == ckey) {
+				new_mode = CSOP_SKIP;
+			} else {
+				new_mode = CSOP_COPY;
+			}
+
+			if(new_mode != mode) {
+				if(mode != -1) {
+					assert(start >= 0);
+					optr->op = mode;
+					optr->len = j - start;
+					optr++;
+				}
+				mode = new_mode;
+				start = j;
+			}
+			pptr++;
+		}
+		pptr += img->scansz - xsz;
+
+		if(mode != -1) {
+			assert(start >= 0);
+			optr->op = mode;
+			optr->len = xsz - start;
+			optr++;
+		}
+	}
+	numops = optr - ops;
+
+	pptr = img->pixels + y * img->scansz + x;
+	optr = ops;
+	/* edi points to dest, FBPITCH is framebuffer width in bytes */
+	for(i=0; i<numops; i++) {
+		switch(optr->op) {
+		case CSOP_SKIP:
+			printf("\tadd $%d, %%edi\n", optr->len);
+			pptr += optr->len;
+			break;
+
+		case CSOP_ENDL:
+			printf("\tadd $FBPITCH-%d, %%edi\n", xsz);
+			pptr += img->scansz - xsz;
+			break;
+
+		case CSOP_COPY:
+			for(j=0; j<optr->len; j++) {
+				printf("\tmov $0x%x, %d(%%edi)\n", (unsigned int)*pptr++, j);
+			}
+			printf("\tadd $%d, %%edi\n", optr->len);
+			break;
+
+		default:
+			printf("\t# invalid op: %d\n", optr->op);
 		}
 	}
 
