@@ -298,9 +298,9 @@ static void draw_rect(unsigned char *fb, int cx, int cy, int r, int col)
 	y1 = cy + r;
 
 	draw_hline(fb, x0, y0, x1 - x0, col);
-	draw_hline(fb, x0, y1, x1 - x0, col);
+	draw_hline(fb, x0, y1 - 1, x1 - x0, col);
 	draw_vline(fb, x0, y0, y1 - y0, col);
-	draw_vline(fb, x1, y0, y1 - y0, col);
+	draw_vline(fb, x1 - 1, y0, y1 - y0, col);
 }
 
 
