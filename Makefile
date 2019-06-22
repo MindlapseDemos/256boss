@@ -14,6 +14,8 @@ dep = $(obj:.o=.d)
 elf = 256boss.elf
 bin = 256boss.bin
 
+ssrc += data/ssfontbig.s
+
 warn = -pedantic -Wall
 #opt = -O2
 dbg = -g
@@ -128,3 +130,9 @@ mount: disk.img
 data: blank.img
 	mcopy -D o -i $<@@1M data/* ::.data
 	$(MAKE)
+
+tools/csprite/csprite:
+	$(MAKE) -C tools/csprite
+
+data/ssfontbig.s: data/256boss.png tools/csprite/csprite
+	tools/csprite/csprite -s 16x16 -r 288x32+32+17 $< >$@
