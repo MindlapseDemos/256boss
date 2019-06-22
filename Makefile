@@ -135,4 +135,4 @@ tools/csprite/csprite:
 	$(MAKE) -C tools/csprite
 
 data/ssfontbig.s: data/256boss.png tools/csprite/csprite
-	tools/csprite/csprite -s 16x16 -r 288x32+32+17 $< >$@
+	tools/csprite/csprite -n ssfontbig -s 16x16 -r 288x32+32+17 $< >$@

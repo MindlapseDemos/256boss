@@ -19,6 +19,7 @@ struct rect rect;
 int cmap_offs;
 int ckey;
 int fbpitch = 320;
+const char *name = "sprite";
 
 int main(int argc, char **argv)
 {
@@ -52,6 +53,13 @@ int main(int argc, char **argv)
 				fbpitch = atoi(argv[++i]);
 				if(fbpitch <= 0) {
 					fprintf(stderr, "-fbpitch must be followed by a positive number\n");
+					return 1;
+				}
+
+			} else if(strcmp(argv[i], "-n") == 0 || strcmp(argv[i], "-name") == 0) {
+				name = argv[++i];
+				if(!name) {
+					fprintf(stderr, "%s must be followed by a name\n", argv[i - 1]);
 					return 1;
 				}
 
@@ -91,7 +99,9 @@ const char *prefixfmt =
 	"\tadd 8(%%esp), %%eax\n"
 	"\tadd 4(%%esp), %%eax\n"
 	"\tmov %%eax, %%edx\n"
-	"\tjmp tile0\n\n";	/* TODO CONT here: jump table */
+	"\tmov 16(%%esp), %%eax\n"
+	"\tjmp *tiletab(,%%eax,4)\n\n"
+	"tiletab:\n";
 
 int proc_sheet(const char *fname)
 {
@@ -118,7 +128,11 @@ int proc_sheet(const char *fname)
 		ysz = tile_ysz;
 	}
 
-	printf(prefixfmt, "ssfontbig", "ssfontbig", fbpitch);
+	printf(prefixfmt, name, name, fbpitch);
+	for(i=0; i<num_ytiles*num_xtiles; i++) {
+		printf("\t.long tile%d\n", i);
+	}
+	putchar('\n');
 
 	tidx = 0;
 	for(i=0; i<num_ytiles; i++) {

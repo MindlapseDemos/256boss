@@ -168,7 +168,7 @@ static void draw(void)
 	draw_tunnel(msec);
 	draw_menu(msec);
 
-	ssfontbig(fb, 200, 100, 0);
+	ssfontbig(fb, 200, 100, 5);
 
 	wait_vsync();
 	memcpy(vmem, fb, 64000);
