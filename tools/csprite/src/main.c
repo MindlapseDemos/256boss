@@ -82,6 +82,17 @@ int main(int argc, char **argv)
 	return 0;
 }
 
+const char *prefixfmt =
+	"\t.global %s\n"
+	"%s:\n"
+	"\tmov 12(%%esp), %%eax\n"
+	"\tmov $%d, %%ecx\n"
+	"\tmul %%ecx\n"
+	"\tadd 8(%%esp), %%eax\n"
+	"\tadd 4(%%esp), %%eax\n"
+	"\tmov %%eax, %%edx\n"
+	"\tjmp tile0\n\n";	/* TODO CONT here: jump table */
+
 int proc_sheet(const char *fname)
 {
 	int i, j, num_xtiles, num_ytiles, xsz, ysz, tidx;
@@ -106,6 +117,8 @@ int proc_sheet(const char *fname)
 		xsz = tile_xsz;
 		ysz = tile_ysz;
 	}
+
+	printf(prefixfmt, "ssfontbig", "ssfontbig", fbpitch);
 
 	tidx = 0;
 	for(i=0; i<num_ytiles; i++) {
@@ -179,7 +192,7 @@ int csprite(struct image *img, int x, int y, int xsz, int ysz)
 	pptr = img->pixels + y * img->scansz + x;
 	optr = ops;
 	skip_acc = 0;
-	/* edi points to dest, FBPITCH is framebuffer width in bytes */
+	/* edx points to dest */
 	for(i=0; i<numops; i++) {
 		switch(optr->op) {
 		case CSOP_SKIP:
@@ -194,25 +207,25 @@ int csprite(struct image *img, int x, int y, int xsz, int ysz)
 
 		case CSOP_COPY:
 			if(skip_acc) {
-				printf("\tadd $%d, %%edi\n", skip_acc);
+				printf("\tadd $%d, %%edx\n", skip_acc);
 				skip_acc = 0;
 			}
 
 			for(j=0; j<optr->len / 4; j++) {
-				printf("\tmovl $0x%x, %d(%%edi)\n", *(uint32_t*)pptr, j * 4);
+				printf("\tmovl $0x%x, %d(%%edx)\n", *(uint32_t*)pptr, j * 4);
 				pptr += 4;
 			}
 			j *= 4;
 			switch(optr->len % 4) {
 			case 3:
-				printf("\tmovb $0x%x, %d(%%edi)\n", (unsigned int)*pptr++, j++);
+				printf("\tmovb $0x%x, %d(%%edx)\n", (unsigned int)*pptr++, j++);
 			case 2:
-				printf("\tmovw $0x%x, %d(%%edi)\n", (unsigned int)*(uint16_t*)pptr, j);
+				printf("\tmovw $0x%x, %d(%%edx)\n", (unsigned int)*(uint16_t*)pptr, j);
 				pptr += 2;
 				j += 2;
 				break;
 			case 1:
-				printf("\tmovb $0x%x, %d(%%edi)\n", (unsigned int)*pptr++, j++);
+				printf("\tmovb $0x%x, %d(%%edx)\n", (unsigned int)*pptr++, j++);
 				break;
 			}
 
@@ -224,6 +237,7 @@ int csprite(struct image *img, int x, int y, int xsz, int ysz)
 		}
 		optr++;
 	}
+	printf("\tret\n");
 
 	return 0;
 }

@@ -32,6 +32,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #define DATA_PATH	"/.data/"
 
+void ssfontbig(void *fb, int x, int y, int g);
+
 static void setup_video(void);
 static void draw(void);
 static void draw_tunnel(unsigned long msec);
@@ -165,6 +167,8 @@ static void draw(void)
 
 	draw_tunnel(msec);
 	draw_menu(msec);
+
+	ssfontbig(fb, 200, 100, 0);
 
 	wait_vsync();
 	memcpy(vmem, fb, 64000);
