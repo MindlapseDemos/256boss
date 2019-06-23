@@ -36,8 +36,9 @@ void ssfontbig(void *fb, int x, int y, int g);
 
 static void setup_video(void);
 static void draw(void);
-static void draw_tunnel(unsigned long msec);
 static void draw_menu(unsigned long msec);
+static void draw_tunnel(unsigned long msec);
+static int draw_glyph_big(int x, int y, int c);
 static int precalc_tunnel(void);
 /*static int precalc_floor(void);*/
 
@@ -168,21 +169,37 @@ static void draw(void)
 	draw_tunnel(msec);
 	draw_menu(msec);
 
-	ssfontbig(fb, 200, 100, 5);
-
 	wait_vsync();
 	memcpy(vmem, fb, 64000);
 }
 
+static const char *labels[] = {
+	"F2 TEXT UI",
+	"F3 VGA GUI",
+	"F4 HIRES GUI"
+};
+
 static void draw_menu(unsigned long msec)
 {
-	int i;
+	int i, x, y, max_chars, max_labels;
 	int sz = msec;
+	const char *tx;
 
 	if(sz > 20) sz = 20;
+	max_chars = msec / 8;
+	max_labels = msec / 16;
+	if(max_labels > 3) max_labels = 3;
 
-	for(i=0; i<3; i++) {
-		draw_rect(fb, 30, 60 * i + 50, sz, 63);
+	for(i=0; i<max_labels; i++) {
+		x = 30;
+		y = 60 * i + 50;
+		draw_rect(fb, x, y, sz, 63);
+
+		tx = labels[i];
+		while(*tx) {
+			if(tx - labels[i] >= max_chars) break;
+			x += draw_glyph_big(x - 16, y - 8, *tx++);
+		}
 	}
 }
 
@@ -220,6 +237,33 @@ static void draw_tunnel(unsigned long msec)
 		}
 		tun += TUN_WIDTH - 320;
 	}
+}
+
+static int gstart[] = {
+	2, 0, 0, 0, 1, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
+static int gwidth[] = {
+	16, 16, 16, 16, 12, 16, 15, 16, 6, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 13, 14, 14, 16, 16, 16, 16,
+	16, 16, 16, 16, 16, 16, 16, 16, 16, 16
+};
+
+static int draw_glyph_big(int x, int y, int c)
+{
+	int idx = -1;
+
+	if(c >= 'A' && c <= 'Z') {
+		idx = c - 'A';
+	} else if(c >= '1' && c <= '9') {
+		idx = c - '1' + 26;
+	} else if(c == '0') {
+		idx = 35;
+	} else {
+		return 8;
+	}
+
+	ssfontbig(fb, x - gstart[idx], y, idx);
+	return gwidth[idx];
 }
 
 #define TUN_ASPECT	((float)TUN_WIDTH / (float)TUN_HEIGHT)
