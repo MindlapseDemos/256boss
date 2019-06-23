@@ -174,9 +174,9 @@ static void draw(void)
 }
 
 static const char *labels[] = {
-	"F2 TEXT UI",
-	"F3 VGA GUI",
-	"F4 HIRES GUI"
+	"TEXT UI",
+	"VGA GUI",
+	"HIRES GUI"
 };
 
 static void draw_menu(unsigned long msec)
@@ -198,7 +198,7 @@ static void draw_menu(unsigned long msec)
 		tx = labels[i];
 		while(*tx) {
 			if(tx - labels[i] >= max_chars) break;
-			x += draw_glyph_big(x - 16, y - 8, *tx++);
+			x += draw_glyph_big(x + 22, y - 8, *tx++);
 		}
 	}
 }
@@ -244,7 +244,7 @@ static int gstart[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 static int gwidth[] = {
-	16, 16, 16, 16, 12, 16, 15, 16, 6, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 13, 14, 14, 16, 16, 16, 16,
+	16, 16, 16, 16, 12, 16, 15, 16, 6, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 13, 14, 14, 16, 14, 16, 16,
 	16, 16, 16, 16, 16, 16, 16, 16, 16, 16
 };
 
