@@ -291,13 +291,21 @@ struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 	}
 
 	/* open root directory */
-	if(!(rootdir = malloc(sizeof *rootdir))) {
-		panic("FAT: failed to allocate root directory structure\n");
-	}
-	rootdir->fatfs = fatfs;
 	if(fatfs->type == FAT32) {
-		panic("FAT32 root dir not implemented yet\n");
+		struct fat_dirent ent;
+		ent.attr = ATTR_DIR;
+		ent.first_cluster_low = bpb32->root_clust;
+		ent.first_cluster_high = bpb32->root_clust >> 16;
+		if(!(rootdir = load_dir(fatfs, &ent))) {
+			panic("FAT: failed to load FAT32 root directory\n");
+		}
+
 	} else {
+		if(!(rootdir = malloc(sizeof *rootdir))) {
+			panic("FAT: failed to allocate root directory structure\n");
+		}
+		rootdir->fatfs = fatfs;
+
 		rootdir->max_nent = fatfs->root_size * 512 / sizeof(struct fat_dirent);
 		if(!(rootdir->ent = malloc(fatfs->root_size * 512))) {
 			panic("FAT: failed to allocate memory for the root directory\n");
@@ -308,8 +316,9 @@ struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 			read_sector(dev, fatfs->start_sect + fatfs->root_sect + i, ptr);
 			ptr += 512;
 		}
+
+		parse_dir_entries(rootdir);
 	}
-	parse_dir_entries(rootdir);
 	rootdir->ref = 1;
 	fatfs->rootdir = rootdir;
 
