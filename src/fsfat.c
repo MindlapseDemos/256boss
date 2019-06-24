@@ -183,7 +183,7 @@ static void free_dir(struct fat_dir *dir);
 static struct fat_file *init_file(struct fatfs *fatfs, struct fat_dirent *dent);
 static void free_file(struct fat_file *file);
 
-static int read_sector(int dev, uint64_t sidx, void *sect);
+static int read_sectors(int dev, uint64_t sidx, int count, void *sect);
 static int read_cluster(struct fatfs *fatfs, uint32_t addr, void *clust);
 static int dent_filename(struct fat_dirent *dent, struct fat_dirent *prev, char *buf);
 static struct fs_dirent *find_entry(struct fat_dir *dir, const char *name);
@@ -207,11 +207,11 @@ static struct fs_operations fs_fat_ops = {
 };
 
 static unsigned char sectbuf[512];
-
+static int max_sect_once;
 
 struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 {
-	int i;
+	int num_read;
 	char *endp, *ptr;
 	struct filesys *fs;
 	struct fatfs *fatfs;
@@ -220,7 +220,11 @@ struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 	struct bparam_ext16 *bpb16;
 	struct bparam_ext32 *bpb32;
 
-	if(read_sector(dev, start, sectbuf) == -1) {
+	max_sect_once = ((unsigned char*)0xa0000 - low_mem_buffer) / 512;
+	/* some BIOS implementations have a maximum limit of 127 sectors */
+	if(max_sect_once > 127) max_sect_once = 127;
+
+	if(read_sectors(dev, start, 1, sectbuf) == -1) {
 		return 0;
 	}
 	bpb = (struct bparam*)sectbuf;
@@ -285,9 +289,14 @@ struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 		panic("FAT: failed to allocate memory for the FAT (%lu bytes)\n", (unsigned long)fatfs->fat_size * 512);
 	}
 	ptr = fatfs->fat;
-	for(i=0; i<fatfs->fat_size; i++) {
-		read_sector(dev, fatfs->start_sect + fatfs->fat_sect + i, ptr);
-		ptr += 512;
+	num_read = 0;
+	while(num_read < fatfs->fat_size) {
+		int count = fatfs->fat_size - num_read;
+		if(count > max_sect_once) count = max_sect_once;
+
+		read_sectors(dev, fatfs->start_sect + fatfs->fat_sect + num_read, count, ptr);
+		ptr += count * 512;
+		num_read += count;
 	}
 
 	/* open root directory */
@@ -312,9 +321,14 @@ struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 		}
 		ptr = (char*)rootdir->ent;
 
-		for(i=0; i<fatfs->root_size; i++) {
-			read_sector(dev, fatfs->start_sect + fatfs->root_sect + i, ptr);
-			ptr += 512;
+		num_read = 0;
+		while(num_read < fatfs->root_size) {
+			int count = fatfs->root_size - num_read;
+			if(count > max_sect_once) count = max_sect_once;
+
+			read_sectors(dev, fatfs->start_sect + fatfs->root_sect + num_read, count, ptr);
+			ptr += count * 512;
+			num_read += count;
 		}
 
 		parse_dir_entries(rootdir);
@@ -758,10 +772,10 @@ static void free_file(struct fat_file *file)
 	}
 }
 
-static int read_sector(int dev, uint64_t sidx, void *sect)
+static int read_sectors(int dev, uint64_t sidx, int count, void *sect)
 {
 	if(dev == -1 || dev == boot_drive_number) {
-		if(bdev_read_sect(sidx, sect) == -1) {
+		if(bdev_read_range(sidx, count, sect) == -1) {
 			return -1;
 		}
 		return 0;
@@ -774,14 +788,10 @@ static int read_sector(int dev, uint64_t sidx, void *sect)
 static int read_cluster(struct fatfs *fatfs, uint32_t addr, void *clust)
 {
 	char *ptr = clust;
-	int i;
 	uint64_t saddr = (uint64_t)(addr - 2) * fatfs->cluster_size + fatfs->first_data_sect + fatfs->start_sect;
 
-	for(i=0; i<fatfs->cluster_size; i++) {
-		if(read_sector(fatfs->dev, saddr + i, ptr) == -1) {
-			return -1;
-		}
-		ptr += 512;
+	if(read_sectors(fatfs->dev, saddr, fatfs->cluster_size, ptr) == -1) {
+		return -1;
 	}
 	return 0;
 }

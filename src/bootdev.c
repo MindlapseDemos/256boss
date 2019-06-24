@@ -44,8 +44,8 @@ enum {OP_READ, OP_WRITE};
 #ifdef DBG_RESET_ON_FAIL
 static int bios_reset_dev(int dev);
 #endif
-static int bios_rw_sect_lba(int dev, uint64_t lba, int op, void *buf);
-static int bios_rw_sect_chs(int dev, struct chs *chs, int op, void *buf);
+static int bios_rw_sect_lba(int dev, uint64_t lba, int nsect, int op, void *buf);
+static int bios_rw_sect_chs(int dev, struct chs *chs, int nsect, int op, void *buf);
 static int get_drive_chs(int dev, struct chs *chs);
 static void calc_chs(uint64_t lba, struct chs *chs);
 
@@ -99,13 +99,13 @@ int bdev_read_sect(uint64_t lba, void *buf)
 	}
 
 	if(have_bios_ext) {
-		return bios_rw_sect_lba(boot_drive_number, lba, OP_READ, buf);
+		return bios_rw_sect_lba(boot_drive_number, lba, 1, OP_READ, buf);
 	}
 
 	calc_chs(lba, &chs);
 
 	for(i=0; i<NRETRIES; i++) {
-		if(bios_rw_sect_chs(boot_drive_number, &chs, OP_READ, buf) != -1) {
+		if(bios_rw_sect_chs(boot_drive_number, &chs, 1, OP_READ, buf) != -1) {
 			return 0;
 		}
 #ifdef DBG_RESET_ON_FAIL
@@ -125,11 +125,64 @@ int bdev_write_sect(uint64_t lba, void *buf)
 	}
 
 	if(have_bios_ext) {
-		return bios_rw_sect_lba(boot_drive_number, lba, OP_WRITE, buf);
+		return bios_rw_sect_lba(boot_drive_number, lba, 1, OP_WRITE, buf);
 	}
 
 	calc_chs(lba, &chs);
-	return bios_rw_sect_chs(boot_drive_number, &chs, OP_WRITE, buf);
+	return bios_rw_sect_chs(boot_drive_number, &chs, 1, OP_WRITE, buf);
+}
+
+int bdev_read_range(uint64_t lba, int nsect, void *buf)
+{
+	int i;
+	struct chs chs;
+
+	if(bdev_is_floppy) {
+		cancel_alarm(floppy_motors_off);
+		set_alarm(FLOPPY_MOTOR_OFF_TIMEOUT, floppy_motors_off);
+	}
+
+	if(have_bios_ext) {
+		return bios_rw_sect_lba(boot_drive_number, lba, nsect, OP_READ, buf);
+	}
+
+	calc_chs(lba, &chs);
+
+	for(i=0; i<NRETRIES; i++) {
+		int rd;
+		if((rd = bios_rw_sect_chs(boot_drive_number, &chs, nsect, OP_READ, buf)) == nsect) {
+			return 0;
+		}
+
+		if(rd > 0) {
+			nsect -= rd;
+			buf = (char*)buf + rd * 512;
+			lba += rd;
+			calc_chs(lba, &chs);
+		}
+
+#ifdef DBG_RESET_ON_FAIL
+		bios_reset_dev(boot_drive_number);
+#endif
+	}
+	return -1;
+}
+
+int bdev_write_range(uint64_t lba, int nsect, void *buf)
+{
+	struct chs chs;
+
+	if(bdev_is_floppy) {
+		cancel_alarm(floppy_motors_off);
+		set_alarm(FLOPPY_MOTOR_OFF_TIMEOUT, floppy_motors_off);
+	}
+
+	if(have_bios_ext) {
+		return bios_rw_sect_lba(boot_drive_number, lba, nsect, OP_WRITE, buf);
+	}
+
+	calc_chs(lba, &chs);
+	return bios_rw_sect_chs(boot_drive_number, &chs, nsect, OP_WRITE, buf);
 }
 
 
@@ -151,7 +204,7 @@ static int bios_reset_dev(int dev)
 }
 #endif
 
-static int bios_rw_sect_lba(int dev, uint64_t lba, int op, void *buf)
+static int bios_rw_sect_lba(int dev, uint64_t lba, int nsect, int op, void *buf)
 {
 	struct int86regs regs;
 	struct disk_access *dap = (struct disk_access*)low_mem_buffer;
@@ -164,12 +217,12 @@ static int bios_rw_sect_lba(int dev, uint64_t lba, int op, void *buf)
 		func = 0x42;	/* function 42h: extended read sector (LBA) */
 	} else {
 		func = 0x43;	/* function 43h: extended write sector (LBA) */
-		memcpy(xbuf, buf, 512);
+		memcpy(xbuf, buf, nsect * 512);
 	}
 
 	dap->pktsize = sizeof *dap;
 	dap->zero = 0;
-	dap->num_sectors = 1;
+	dap->num_sectors = nsect;
 	dap->boffs = 0;
 	dap->bseg = xaddr >> 4;
 	dap->lba_low = (uint32_t)lba;
@@ -188,12 +241,15 @@ static int bios_rw_sect_lba(int dev, uint64_t lba, int op, void *buf)
 	}
 
 	if(op == OP_READ) {
-		memcpy(buf, xbuf, 512);
+		memcpy(buf, xbuf, nsect * 512);
 	}
-	return 0;
+	return dap->num_sectors;
 }
 
-static int bios_rw_sect_chs(int dev, struct chs *chs, int op, void *buf)
+/* TODO: fix: probably can't cross track boundaries, clamp nsect accordingly
+ * and return a short count
+ */
+static int bios_rw_sect_chs(int dev, struct chs *chs, int nsect, int op, void *buf)
 {
 	struct int86regs regs;
 	uint32_t xaddr = (uint32_t)low_mem_buffer;
@@ -203,11 +259,11 @@ static int bios_rw_sect_chs(int dev, struct chs *chs, int op, void *buf)
 		func = 2;
 	} else {
 		func = 3;
-		memcpy(low_mem_buffer, buf, 512);
+		memcpy(low_mem_buffer, buf, nsect * 512);
 	}
 
 	memset(&regs, 0, sizeof regs);
-	regs.eax = (func << 8) | 1;	/* 1 sector */
+	regs.eax = (func << 8) | nsect;	/* 1 sector */
 	regs.es = xaddr >> 4;	/* es:bx buffer */
 	regs.ecx = ((chs->cyl << 8) & 0xff00) | ((chs->cyl >> 10) & 0xc0) | chs->tsect;
 	regs.edx = dev | (chs->head << 8);
@@ -219,9 +275,9 @@ static int bios_rw_sect_chs(int dev, struct chs *chs, int op, void *buf)
 	}
 
 	if(op == OP_READ) {
-		memcpy(buf, low_mem_buffer, 512);
+		memcpy(buf, low_mem_buffer, nsect * 512);
 	}
-	return 0;
+	return nsect;
 }
 
 static int get_drive_chs(int dev, struct chs *chs)

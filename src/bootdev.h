@@ -23,4 +23,7 @@ void bdev_init(void);
 int bdev_read_sect(uint64_t lba, void *buf);
 int bdev_write_sect(uint64_t lba, void *buf);
 
+int bdev_read_range(uint64_t lba, int nsect, void *buf);
+int bdev_write_range(uint64_t lba, int nsect, void *buf);
+
 #endif	/* BOOTDEV_H_ */
