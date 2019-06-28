@@ -20,7 +20,17 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <inttypes.h>
 
+/* device ids for virtual filesystems */
 enum {
+	DEV_FLOPPY0		= 0,
+	DEV_FLOPPY1		= 1,
+	DEV_HDD0		= 0x80,
+	DEV_HDD1		= 0x81,
+	DEV_MEMDISK		= 0x10000
+};
+
+enum {
+	FSTYPE_MEM,
 	FSTYPE_FAT,
 
 	NUM_FSTYPES

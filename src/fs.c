@@ -23,8 +23,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "panic.h"
 
 struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size);
+struct filesys *fsmem_create(int dev, uint64_t start, uint64_t size);
 
 static struct filesys *(*createfs[])(int, uint64_t, uint64_t) = {
+	fsmem_create,
 	fsfat_create
 };
 
