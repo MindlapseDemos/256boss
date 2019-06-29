@@ -63,7 +63,7 @@ FILE *fopen(const char *path, const char *mode)
 		}
 	}
 
-	if(!(node = fs_open(path))) {
+	if(!(node = fs_open(path, 0))) {
 		/* TODO: create */
 		errno = ENOENT;	/* TODO */
 		return 0;

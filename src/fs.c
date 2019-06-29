@@ -70,7 +70,7 @@ int fs_chdir(const char *path)
 		return 0;
 	}
 
-	if(!(node = fs_open(path))) {
+	if(!(node = fs_open(path, 0))) {
 		return -1;
 	}
 	if(node->type != FSNODE_DIR) {
@@ -110,7 +110,7 @@ char *fs_getcwd(void)
 	return cwdpath;
 }
 
-struct fs_node *fs_open(const char *path)
+struct fs_node *fs_open(const char *path, unsigned int flags)
 {
 	struct filesys *fs;
 	struct fs_node *node;
@@ -126,7 +126,7 @@ struct fs_node *fs_open(const char *path)
 		fs = cwdnode->fs;
 	}
 
-	if(!(node = fs->fsop->open(fs, path))) {
+	if(!(node = fs->fsop->open(fs, path, flags))) {
 		return 0;
 	}
 	return node;
@@ -211,4 +211,31 @@ struct fs_dirent *fs_readdir(struct fs_node *node)
 		return 0;
 	}
 	return fsop->readdir(node);
+}
+
+/* fs utility functions */
+char *fs_path_skipsep(char *s)
+{
+	while(*s == '/') s++;
+	return s;
+}
+
+char *fs_path_next(char *s, char *namebuf, int bufsz)
+{
+	int len;
+	char *ptr;
+
+	ptr = s = fs_path_skipsep(s);
+
+	while(*ptr && *ptr != '/') ptr++;
+
+	if(namebuf) {
+		len = ptr - s;
+		if(len >= bufsz) len = bufsz - 1;
+
+		memcpy(namebuf, s, len);
+		namebuf[len] = 0;
+	}
+
+	return fs_path_skipsep(ptr);
 }

@@ -36,7 +36,7 @@ DIR *opendir(const char *path)
 		return 0;
 	}
 
-	if(!(node = fs_open(path))) {
+	if(!(node = fs_open(path, 0))) {
 		errno = ENOENT;
 		return 0;
 	}

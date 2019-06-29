@@ -40,6 +40,11 @@ enum { FSNODE_FILE, FSNODE_DIR };
 
 enum { FSSEEK_SET, FSSEEK_CUR, FSSEEK_END };
 
+enum {
+	FSO_CREATE	= 1,
+	FSO_DIR		= 2
+};
+
 struct filesys;
 struct fs_node;
 struct fs_dirent;
@@ -47,7 +52,7 @@ struct fs_dirent;
 struct fs_operations {
 	void (*destroy)(struct filesys *fs);
 
-	struct fs_node *(*open)(struct filesys *fs, const char *path);
+	struct fs_node *(*open)(struct filesys *fs, const char *path, unsigned int flags);
 	void (*close)(struct fs_node *node);
 
 	long (*fsize)(struct fs_node *node);
@@ -87,7 +92,7 @@ int fs_mount(int dev, uint64_t start, uint64_t size, struct fs_node *parent);
 int fs_chdir(const char *path);
 char *fs_getcwd(void);
 
-struct fs_node *fs_open(const char *path);
+struct fs_node *fs_open(const char *path, unsigned int flags);
 int fs_close(struct fs_node *node);
 
 long fs_filesize(struct fs_node *node);
@@ -98,5 +103,13 @@ int fs_write(struct fs_node *node, void *buf, int sz);
 
 int fs_rewinddir(struct fs_node *node);
 struct fs_dirent *fs_readdir(struct fs_node *node);
+
+/* fs utility functions */
+char *fs_path_skipsep(char *s);
+
+/* copies the current name into the namebuf, and returns a pointer to the
+ * start of the next path component.
+ */
+char *fs_path_next(char *s, char *namebuf, int bufsz);
 
 #endif	/* FS_H_ */

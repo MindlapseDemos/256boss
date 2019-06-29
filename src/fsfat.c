@@ -164,9 +164,7 @@ struct fat_file {
 
 static void destroy(struct filesys *fs);
 
-static struct fs_node *lookup(struct filesys *fs, const char *path);
-
-static struct fs_node *open(struct filesys *fs, const char *path);
+static struct fs_node *open(struct filesys *fs, const char *path, unsigned int flags);
 static void close(struct fs_node *node);
 static long fsize(struct fs_node *node);
 static int seek(struct fs_node *node, int offs, int whence);
@@ -367,7 +365,7 @@ static void destroy(struct filesys *fs)
 	free(fs);
 }
 
-static struct fs_node *lookup(struct filesys *fs, const char *path)
+static struct fs_node *open(struct filesys *fs, const char *path, unsigned int flags)
 {
 	int len;
 	char name[MAX_NAME];
@@ -380,31 +378,29 @@ static struct fs_node *lookup(struct filesys *fs, const char *path)
 
 	if(path[0] == '/') {
 		dir = fatfs->rootdir;
-		while(*path == '/') path++;
+		path = fs_path_skipsep(path);
 	} else {
+		if(cwdnode->fs->type != FSTYPE_FAT) {
+			return 0;
+		}
 		dir = cwdnode->data;
 	}
 
 	while(*path) {
 		if(!dir) {
 			/* we have more path components, yet the last one wasn't a dir */
+			errno = ENOTDIR;
 			return 0;
 		}
 
-		ptr = path;
-		while(*ptr && *ptr != '/') ptr++;
-		len = ptr - path;
-		memcpy(name, path, len);
-		name[len] = 0;
-
-		while(*ptr == '/') ptr++;	/* skip separators */
-		path = ptr;
+		path = fs_path_next(path, name, sizeof name);
 
 		if(name[0] == '.' && name[1] == 0) {
 			continue;
 		}
 
 		if(!(dent = find_entry(dir, name))) {
+			errno = ENOENT;
 			return 0;
 		}
 		fatdent = dent->data;
@@ -429,7 +425,7 @@ static struct fs_node *lookup(struct filesys *fs, const char *path)
 
 
 	if(!(node = malloc(sizeof *node))) {
-		panic("FAT: lookup failed to allocate fs_node structure\n");
+		panic("FAT: open failed to allocate fs_node structure\n");
 	}
 	node->fs = fs;
 	if(dir) {
@@ -453,11 +449,6 @@ static struct fs_node *lookup(struct filesys *fs, const char *path)
 	}
 
 	return node;
-}
-
-static struct fs_node *open(struct filesys *fs, const char *path)
-{
-	return lookup(fs, path);
 }
 
 static void close(struct fs_node *node)
