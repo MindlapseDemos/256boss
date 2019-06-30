@@ -17,6 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 #include <errno.h>
 #include "fs.h"
@@ -50,7 +51,7 @@ struct memfs_node {
 		struct memfs_file file;
 		struct memfs_dir dir;
 	};
-	struct memfs_dir *parent;
+	struct memfs_node *parent;
 	struct memfs_node *next;
 };
 
@@ -66,6 +67,8 @@ static int read(struct fs_node *node, void *buf, int sz);
 static int write(struct fs_node *node, void *buf, int sz);
 static int rewinddir(struct fs_node *node);
 static struct fs_dirent *readdir(struct fs_node *node);
+
+static struct fs_node *create_fsnode(struct filesys *fs, struct memfs_node *n);
 
 static struct memfs_node *alloc_node(int type);
 static void free_node(struct memfs_node *node);
@@ -122,7 +125,6 @@ static void destroy(struct filesys *fs)
 
 static struct fs_node *open(struct filesys *fs, const char *path, unsigned int flags)
 {
-	struct fs_node *fsn;
 	struct memfs_node *node, *parent;
 	struct memfs *memfs = fs->data;
 	char name[MAX_NAME + 1];
@@ -144,7 +146,7 @@ static struct fs_node *open(struct filesys *fs, const char *path, unsigned int f
 			return 0;
 		}
 
-		path = fs_path_next(path, name, sizeof name);
+		path = fs_path_next((char*)path, name, sizeof name);
 
 		if(!(node = find_entry(node, name))) {
 			if(*path || !(flags & FSO_CREATE)) {
@@ -179,7 +181,7 @@ static struct fs_node *create_fsnode(struct filesys *fs, struct memfs_node *n)
 		free(fsn);
 		return 0;
 	}
-	*node = n;
+	*node = *n;
 
 	fsn->fs = fs;
 	fsn->type = node->type;
@@ -220,11 +222,11 @@ static int seek(struct fs_node *node, int offs, int whence)
 		break;
 
 	case FSSEEK_CUR:
-		new_pos = node->file.cur_pos + offs;
+		new_pos = n->file.cur_pos + offs;
 		break;
 
 	case FSSEEK_END:
-		new_pos = node->file.size + offs;
+		new_pos = n->file.size + offs;
 		break;
 
 	default:
@@ -233,7 +235,7 @@ static int seek(struct fs_node *node, int offs, int whence)
 
 	if(new_pos < 0) new_pos = 0;
 
-	file->cur_pos = new_pos;
+	n->file.cur_pos = new_pos;
 	return 0;
 }
 
@@ -259,7 +261,7 @@ static int read(struct fs_node *node, void *buf, int sz)
 	n = node->data;
 
 	if(sz > n->file.size - n->file.cur_pos) {
-		sz = n->file.size - n->file_cur_pos;
+		sz = n->file.size - n->file.cur_pos;
 	}
 	memcpy(buf, n->file.data + n->file.cur_pos, sz);
 	n->file.cur_pos += sz;
@@ -321,8 +323,6 @@ static struct memfs_node *alloc_node(int type)
 
 static void free_node(struct memfs_node *node)
 {
-	int i;
-
 	if(!node) return;
 
 	switch(node->type) {
@@ -331,33 +331,35 @@ static void free_node(struct memfs_node *node)
 		break;
 
 	case FSNODE_DIR:
-		for(i=0; i<node->dir.num_ent; i++) {
-			free_node(node->dir.ent[i].node);
+		while(node->dir.clist) {
+			struct memfs_node *n = node->dir.clist;
+			node->dir.clist = n->next;
+			free_node(n);
 		}
-		free(node->dir.ent);
 		break;
 	}
 }
 
-static struct memfs_dirent *find_entry(struct memfs_dir *dir, const char *name)
+static struct memfs_node *find_entry(struct memfs_node *dnode, const char *name)
 {
-	int i;
+	struct memfs_node *n = dnode->dir.clist;
 
-	for(i=0; i<dir->num_ent; i++) {
-		if(strcasecmp(dir->ent[i].name, name) == 0) {
-			return dir->ent + i;
+	while(n) {
+		if(strcasecmp(n->name, name) == 0) {
+			return n;
 		}
+		n = n->next;
 	}
 	return 0;
 }
 
-static void add_child(struct memfs_dir *dir, struct memfs_node *n)
+static void add_child(struct memfs_node *dnode, struct memfs_node *n)
 {
-	if(dir->clist) {
-		dir->ctail->next = n;
-		dir->ctail = n;
+	if(dnode->dir.clist) {
+		dnode->dir.ctail->next = n;
+		dnode->dir.ctail = n;
 	} else {
-		dir->clist = dir->ctail = n;
+		dnode->dir.clist = dnode->dir.ctail = n;
 	}
-	n->parent = dir;
+	n->parent = dnode;
 }

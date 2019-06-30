@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <string.h>
 #include <inttypes.h>
 #include <ctype.h>
+#include <errno.h>
 #include <assert.h>
 #include "fs.h"
 #include "bootdev.h"
@@ -367,9 +368,7 @@ static void destroy(struct filesys *fs)
 
 static struct fs_node *open(struct filesys *fs, const char *path, unsigned int flags)
 {
-	int len;
 	char name[MAX_NAME];
-	const char *ptr;
 	struct fatfs *fatfs = fs->data;
 	struct fat_dir *dir, *newdir;
 	struct fs_dirent *dent;
@@ -378,7 +377,7 @@ static struct fs_node *open(struct filesys *fs, const char *path, unsigned int f
 
 	if(path[0] == '/') {
 		dir = fatfs->rootdir;
-		path = fs_path_skipsep(path);
+		path = fs_path_skipsep((char*)path);
 	} else {
 		if(cwdnode->fs->type != FSTYPE_FAT) {
 			return 0;
@@ -393,7 +392,7 @@ static struct fs_node *open(struct filesys *fs, const char *path, unsigned int f
 			return 0;
 		}
 
-		path = fs_path_next(path, name, sizeof name);
+		path = fs_path_next((char*)path, name, sizeof name);
 
 		if(name[0] == '.' && name[1] == 0) {
 			continue;
