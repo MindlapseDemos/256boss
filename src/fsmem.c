@@ -36,6 +36,7 @@ struct memfs {
 struct memfs_dir {
 	struct memfs_node *clist, *ctail;
 	struct memfs_node *cur;
+	struct fs_dirent dent;
 };
 
 struct memfs_file {
@@ -147,6 +148,7 @@ static struct fs_node *open(struct filesys *fs, const char *path, unsigned int f
 		}
 
 		path = fs_path_next((char*)path, name, sizeof name);
+		parent = node;
 
 		if(!(node = find_entry(node, name))) {
 			if(*path || !(flags & FSO_CREATE)) {
@@ -154,7 +156,6 @@ static struct fs_node *open(struct filesys *fs, const char *path, unsigned int f
 				return 0;
 			}
 			/* create and add */
-			parent = node;
 			if(!(node = alloc_node((flags & FSO_DIR) ? FSNODE_DIR : FSNODE_FILE))) {
 				errno = ENOMEM;
 				return 0;
@@ -191,7 +192,6 @@ static struct fs_node *create_fsnode(struct filesys *fs, struct memfs_node *n)
 
 static void close(struct fs_node *node)
 {
-	free(node->data);
 	free(node);
 }
 
@@ -301,12 +301,40 @@ static int write(struct fs_node *node, void *buf, int sz)
 
 static int rewinddir(struct fs_node *node)
 {
-	return -1;
+	struct memfs_node *n;
+
+	if(!node || node->type != FSNODE_DIR) {
+		return -1;
+	}
+
+	n = node->data;
+	n->dir.cur = n->dir.clist;
+	return 0;
 }
 
 static struct fs_dirent *readdir(struct fs_node *node)
 {
-	return 0;
+	struct memfs_node *dirn, *n;
+	struct fs_dirent *fsd;
+
+	if(!node || node->type != FSNODE_DIR) {
+		return 0;
+	}
+
+	dirn = node->data;
+	fsd = &dirn->dir.dent;
+
+	n = dirn->dir.cur;
+	if(!n) return 0;
+
+	dirn->dir.cur = dirn->dir.cur->next;
+
+	fsd->name = n->name;
+	fsd->data = 0;
+	fsd->type = n->type;
+	fsd->fsize = n->file.size;
+
+	return fsd;
 }
 
 
