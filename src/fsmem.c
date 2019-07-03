@@ -36,13 +36,22 @@ struct memfs {
 struct memfs_dir {
 	struct memfs_node *clist, *ctail;
 	struct memfs_node *cur;
+};
+
+struct odir {
+	struct memfs_dir *dir;
+	struct memfs_node *cur;
 	struct fs_dirent dent;
 };
 
 struct memfs_file {
 	char *data;
-	long cur_pos;
 	long size, max_size;
+};
+
+struct ofile {
+	struct memfs_file *file;
+	long cur_pos;
 };
 
 struct memfs_node {
@@ -160,6 +169,7 @@ static struct fs_node *open(struct filesys *fs, const char *path, unsigned int f
 				errno = ENOMEM;
 				return 0;
 			}
+			strcpy(node->name, name);
 			add_child(parent, node);
 			return create_fsnode(fs, node);
 		}
@@ -171,50 +181,67 @@ static struct fs_node *open(struct filesys *fs, const char *path, unsigned int f
 static struct fs_node *create_fsnode(struct filesys *fs, struct memfs_node *n)
 {
 	struct fs_node *fsn;
-	struct memfs_node *node;
+	struct ofile *of;
+	struct odir *od;
 
 	if(!(fsn = malloc(sizeof *fsn))) {
 		errno = ENOMEM;
 		return 0;
 	}
-	if(!(node = malloc(sizeof *node))) {
-		errno = ENOMEM;
-		free(fsn);
-		return 0;
+
+	if(n->type == FSNODE_FILE) {
+		if(!(of = malloc(sizeof *of))) {
+			errno = ENOMEM;
+			free(fsn);
+			return 0;
+		}
+		of->file = &n->file;
+		of->cur_pos = 0;
+		fsn->data = of;
+	} else {
+		if(!(od = malloc(sizeof *od))) {
+			errno = ENOMEM;
+			free(fsn);
+			return 0;
+		}
+		od->dir = &n->dir;
+		od->cur = n->dir.clist;
+		fsn->data = od;
 	}
-	*node = *n;
 
 	fsn->fs = fs;
-	fsn->type = node->type;
-	fsn->data = node;
+	fsn->type = n->type;
 	return fsn;
 }
 
 static void close(struct fs_node *node)
 {
+	if(!node) return;
+
+	free(node->data);	/* free the copy of memfs_node allocated by create_fsnode */
 	free(node);
 }
 
 static long fsize(struct fs_node *node)
 {
-	struct memfs_node *n;
-	if(node->type != FSNODE_FILE) {
+	struct ofile *of;
+	if(!node || node->type != FSNODE_FILE) {
 		return -1;
 	}
-	n = node->data;
-	return n->file.size;
+	of = node->data;
+	return of->file->size;
 }
 
 static int seek(struct fs_node *node, int offs, int whence)
 {
-	struct memfs_node *n;
+	struct ofile *of;
 	long new_pos;
 
 	if(!node || node->type != FSNODE_FILE) {
 		return -1;
 	}
 
-	n = node->data;
+	of = node->data;
 
 	switch(whence) {
 	case FSSEEK_SET:
@@ -222,11 +249,11 @@ static int seek(struct fs_node *node, int offs, int whence)
 		break;
 
 	case FSSEEK_CUR:
-		new_pos = n->file.cur_pos + offs;
+		new_pos = of->cur_pos + offs;
 		break;
 
 	case FSSEEK_END:
-		new_pos = n->file.size + offs;
+		new_pos = of->file->size + offs;
 		break;
 
 	default:
@@ -235,42 +262,42 @@ static int seek(struct fs_node *node, int offs, int whence)
 
 	if(new_pos < 0) new_pos = 0;
 
-	n->file.cur_pos = new_pos;
+	of->cur_pos = new_pos;
 	return 0;
 }
 
 static long tell(struct fs_node *node)
 {
-	struct memfs_node *n;
+	struct ofile *of;
 
 	if(!node || node->type != FSNODE_FILE) {
 		return -1;
 	}
-	n = node->data;
-	return n->file.cur_pos;
+	of = node->data;
+	return of->cur_pos;
 }
 
 static int read(struct fs_node *node, void *buf, int sz)
 {
-	struct memfs_node *n;
+	struct ofile *of;
 
 	if(!node || !buf || sz < 0 || node->type != FSNODE_FILE) {
 		return -1;
 	}
 
-	n = node->data;
+	of = node->data;
 
-	if(sz > n->file.size - n->file.cur_pos) {
-		sz = n->file.size - n->file.cur_pos;
+	if(sz > of->file->size - of->cur_pos) {
+		sz = of->file->size - of->cur_pos;
 	}
-	memcpy(buf, n->file.data + n->file.cur_pos, sz);
-	n->file.cur_pos += sz;
+	memcpy(buf, of->file->data + of->cur_pos, sz);
+	of->cur_pos += sz;
 	return sz;
 }
 
 static int write(struct fs_node *node, void *buf, int sz)
 {
-	struct memfs_node *n;
+	struct ofile *of;
 	int total_sz, new_max_sz;
 	void *tmp;
 
@@ -278,56 +305,57 @@ static int write(struct fs_node *node, void *buf, int sz)
 		return -1;
 	}
 
-	n = node->data;
-	total_sz = n->file.cur_pos + sz;
-	if(total_sz > n->file.max_size) {
-		if(total_sz < n->file.max_size * 2) {
-			new_max_sz = n->file.max_size * 2;
+	of = node->data;
+	total_sz = of->cur_pos + sz;
+	if(total_sz > of->file->max_size) {
+		if(total_sz < of->file->max_size * 2) {
+			new_max_sz = of->file->max_size * 2;
 		} else {
 			new_max_sz = total_sz;
 		}
-		if(!(tmp = realloc(n->file.data, new_max_sz))) {
+		if(!(tmp = realloc(of->file->data, new_max_sz))) {
 			errno = ENOSPC;
 			return -1;
 		}
-		n->file.data = tmp;
-		n->file.max_size = new_max_sz;
+		of->file->data = tmp;
+		of->file->max_size = new_max_sz;
 	}
 
-	memcpy(n->file.data + n->file.cur_pos, buf, sz);
-	n->file.cur_pos += sz;
+	memcpy(of->file->data + of->cur_pos, buf, sz);
+	of->cur_pos += sz;
 	return sz;
 }
 
 static int rewinddir(struct fs_node *node)
 {
-	struct memfs_node *n;
+	struct odir *od;
 
 	if(!node || node->type != FSNODE_DIR) {
 		return -1;
 	}
 
-	n = node->data;
-	n->dir.cur = n->dir.clist;
+	od = node->data;
+	od->cur = od->dir->clist;
 	return 0;
 }
 
 static struct fs_dirent *readdir(struct fs_node *node)
 {
-	struct memfs_node *dirn, *n;
+	struct odir *od;
+	struct memfs_node *n;
 	struct fs_dirent *fsd;
 
 	if(!node || node->type != FSNODE_DIR) {
 		return 0;
 	}
 
-	dirn = node->data;
-	fsd = &dirn->dir.dent;
+	od = node->data;
+	fsd = &od->dent;
 
-	n = dirn->dir.cur;
+	n = od->cur;
 	if(!n) return 0;
 
-	dirn->dir.cur = dirn->dir.cur->next;
+	od->cur = od->cur->next;
 
 	fsd->name = n->name;
 	fsd->data = 0;
