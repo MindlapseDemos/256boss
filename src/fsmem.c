@@ -323,6 +323,7 @@ static int write(struct fs_node *node, void *buf, int sz)
 
 	memcpy(of->file->data + of->cur_pos, buf, sz);
 	of->cur_pos += sz;
+	if(of->cur_pos > of->file->size) of->file->size = of->cur_pos;
 	return sz;
 }
 
