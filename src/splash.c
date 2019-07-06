@@ -113,10 +113,12 @@ void splash_screen(void)
 		halt_cpu();
 		while((c = kb_getkey()) >= 0) {
 			switch(c) {
+			case '2':
 			case KB_F2:
 				textui();
 				goto end;
 
+			case '8':
 			case KB_F8:
 				goto end;
 			}

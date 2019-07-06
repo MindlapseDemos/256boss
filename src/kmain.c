@@ -80,7 +80,7 @@ void kmain(void)
 
 	mount_boot_fs();
 
-	fsv_init(&fsview);
+	//fsv_init(&fsview);
 
 #ifdef AUTOSTART_GUI
 	if(!kb_isdown(KB_F8)) {

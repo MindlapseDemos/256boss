@@ -55,12 +55,12 @@ struct ofile {
 };
 
 struct memfs_node {
-	int type;
-	char name[MAX_NAME + 4];
 	union {
 		struct memfs_file file;
 		struct memfs_dir dir;
 	};
+	int type;
+	char name[MAX_NAME + 4];
 	struct memfs_node *parent;
 	struct memfs_node *next;
 };
@@ -146,8 +146,9 @@ static struct fs_node *open(struct filesys *fs, const char *path, unsigned int f
 		if(cwdnode->fs->type != FSTYPE_MEM) {
 			return 0;
 		}
-		node = cwdnode->data;
+		node = (struct memfs_node*)((struct odir*)cwdnode->data)->dir;
 	}
+	assert(node->type == FSNODE_DIR);
 
 	while(*path) {
 		if(node->type != FSNODE_DIR) {
@@ -399,8 +400,12 @@ static void free_node(struct memfs_node *node)
 
 static struct memfs_node *find_entry(struct memfs_node *dnode, const char *name)
 {
-	struct memfs_node *n = dnode->dir.clist;
+	struct memfs_node *n;
 
+	if(strcmp(name, ".") == 0) return dnode;
+	if(strcmp(name, "..") == 0) return dnode->parent;
+
+	n = dnode->dir.clist;
 	while(n) {
 		if(strcasecmp(n->name, name) == 0) {
 			return n;
