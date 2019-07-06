@@ -24,7 +24,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define CON_TEXTMODE
 #define CON_SERIAL
 
-//#define AUTOSTART_GUI
+#define AUTOSTART_GUI
 
 #define MOVE_STACK_RAMTOP
 /* allocate 64k for stack */
