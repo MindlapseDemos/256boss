@@ -46,6 +46,9 @@ int fs_mount(int dev, uint64_t start, uint64_t size, struct fs_node *parent)
 				rootfs = fs;
 
 				fs_chdir("/");
+			} else {
+				parent->mnt = fs;
+				mtab_add(parent, fs);
 			}
 			return 0;
 		}

@@ -42,7 +42,8 @@ enum { FSSEEK_SET, FSSEEK_CUR, FSSEEK_END };
 
 enum {
 	FSO_CREATE	= 1,
-	FSO_DIR		= 2
+	FSO_DIR		= 2,
+	FSO_EXCL	= 4
 };
 
 struct filesys;
@@ -75,6 +76,8 @@ struct fs_node {
 	struct filesys *fs;
 	int type;
 	void *data;
+
+	struct filesys *mnt;
 };
 
 struct fs_dirent {

@@ -29,8 +29,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "contty.h"
 #include "timer.h"
 #include "tui/textui.h"
-
-#define DATA_PATH	"/.data/"
+#include "datapath.h"
 
 void ssfontbig(void *fb, int x, int y, int g);
 
@@ -77,9 +76,13 @@ struct tunnel {
 
 void splash_screen(void)
 {
+	if(init_datapath() == -1) {
+		printf("splash_screen: failed to locate the data dir\n");
+	}
+
 	if(!(fb = malloc(64000))) {
 		printf("splash_screen: failed to allocate back buffer\n");
-		return;
+		goto err;
 	}
 
 	tunlut = 0;
@@ -94,11 +97,11 @@ void splash_screen(void)
 	}
 	*/
 
-	if(load_image(&img_ui, DATA_PATH "256boss.png") == -1 || img_ui.bpp != 8) {
+	if(load_image(&img_ui, datafile("256boss.png")) == -1 || img_ui.bpp != 8) {
 		printf("splash_screen: failed to load UI image\n");
 		goto err;
 	}
-	if(load_image(&img_tex, DATA_PATH "sstex2.png") == -1 || img_tex.bpp != 8) {
+	if(load_image(&img_tex, datafile("sstex2.png")) == -1 || img_tex.bpp != 8) {
 		printf("splash_screen: failed to load texture\n");
 		goto err;
 	}

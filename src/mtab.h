@@ -1,5 +1,5 @@
 /*
-pcboot - bootable PC demo/game kernel
+256boss - bootable launcher for 256byte intros
 Copyright (C) 2018-2019  John Tsiombikas <nuclear@member.fsf.org>
 
 This program is free software: you can redistribute it and/or modify
@@ -15,12 +15,20 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#ifndef UNISTD_H_
-#define UNISTD_H_
+#ifndef MTAB_H_
+#define MTAB_H_
 
-int chdir(const char *path);
-char *getcwd(char *buf, int sz);
+#include "fs.h"
 
-int mkdir(const char *path, int mode);
+struct mount {
+	struct fs_node *mpt;
+	struct filesys *fs;
+	struct mount *next;
+};
+struct mount *mnt_list, *mnt_tail;
+int mnt_count;
 
-#endif	/* UNISTD_H_ */
+int mtab_add(struct fs_node *node, struct filesys *fs);
+int mtab_remove_node(struct fs_node *node);
+
+#endif	/* MTAB_H_ */

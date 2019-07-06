@@ -40,9 +40,11 @@ static int cmd_clear(int argc, char **argv);
 static int cmd_help(int argc, char **argv);
 
 static int cmd_chdir(int argc, char **argv);
+static int cmd_mkdir(int argc, char **argv);
 static int cmd_pwd(int argc, char **argv);
 static int cmd_list(int argc, char **argv);
 static int cmd_cat(int argc, char **argv);
+static int cmd_echo(int argc, char **argv);
 
 static int cmd_run(int argc, char **argv);
 
@@ -101,9 +103,11 @@ static struct {
 } commands[] = {
 	{"start", cmd_start},
 	{"cd", cmd_chdir},
+	{"mkdir", cmd_mkdir},
 	{"pwd", cmd_pwd},
 	{"ls", cmd_list},
 	{"cat", cmd_cat},
+	{"echo", cmd_echo},
 	{"clear", cmd_clear},
 	{"run", cmd_run},
 	{"memdbg", cmd_memdbg},
@@ -262,10 +266,19 @@ static int cmd_help(int argc, char **argv)
 static int cmd_chdir(int argc, char **argv)
 {
 	if(argc != 2) {
-		printf("usage: %d <directory>\n", argv[0]);
+		printf("usage: %s <directory>\n", argv[0]);
 		return -1;
 	}
 	return chdir(argv[1]);
+}
+
+static int cmd_mkdir(int argc, char **argv)
+{
+	if(argc != 2) {
+		printf("usage: %s name\n", argv[0]);
+		return -1;
+	}
+	return mkdir(argv[1], 0777);
 }
 
 static int cmd_pwd(int argc, char **argv)
@@ -368,6 +381,16 @@ static int cmd_cat(int argc, char **argv)
 		}
 	}
 eof:
+	return 0;
+}
+
+static int cmd_echo(int argc, char **argv)
+{
+	int i;
+	for(i=1; i<argc; i++) {
+		printf("%s", argv[i]);
+		putchar(i < argc - 1 ? ' ' : '\n');
+	}
 	return 0;
 }
 

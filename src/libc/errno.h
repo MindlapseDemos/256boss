@@ -31,6 +31,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define EPERM			11
 #define ENOTDIR			12
 #define EISDIR			13
+#define EEXIST			14
 #define ERANGE			34
 
 #define EBUG			127	/* for missing features and known bugs */

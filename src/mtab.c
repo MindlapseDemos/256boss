@@ -1,5 +1,5 @@
 /*
-pcboot - bootable PC demo/game kernel
+256boss - bootable launcher for 256byte intros
 Copyright (C) 2018-2019  John Tsiombikas <nuclear@member.fsf.org>
 
 This program is free software: you can redistribute it and/or modify
@@ -15,35 +15,49 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#include <string.h>
-#include <errno.h>
-#include "unistd.h"
-#include "fs.h"
+#include <stdlib.h>
+#include "mtab.h"
 
-int chdir(const char *path)
+int mtab_add(struct fs_node *node, struct filesys *fs)
 {
-	return fs_chdir(path);
-}
+	struct mount *m;
 
-char *getcwd(char *buf, int sz)
-{
-	char *cwd = fs_getcwd();
-	int len = strlen(cwd);
-	if(len + 1 > sz) {
-		errno = ERANGE;
-		return 0;
-	}
-	memcpy(buf, cwd, len + 1);
-	return buf;
-}
-
-int mkdir(const char *path, int mode)
-{
-	struct fs_node *fsn;
-
-	if(!(fsn = fs_open(path, FSO_CREATE | FSO_DIR | FSO_EXCL))) {
+	if(!(m = malloc(sizeof *m))) {
 		return -1;
 	}
-	fs_close(fsn);
+	m->mpt = node;
+	m->fs = fs;
+	m->next = 0;
+
+	if(mnt_list) {
+		mnt_tail->next = m;
+		mnt_tail = m;
+	} else {
+		mnt_list = mnt_tail = m;
+	}
+	mnt_count++;
 	return 0;
+}
+
+int mtab_remove_node(struct fs_node *node)
+{
+	int res = -1;
+	struct mount dummy;
+	struct mount *prev, *m;
+
+	dummy.next = mnt_list;
+	prev = &dummy;
+
+	while(prev->next) {
+		m = prev->next;
+		if(m->mpt == node) {
+			prev->next = m->next;
+			free(m);
+			res = 0;
+			break;
+		}
+		prev = prev->next;
+	}
+	mnt_list = dummy.next;
+	return res;
 }

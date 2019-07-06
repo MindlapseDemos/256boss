@@ -18,6 +18,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <assert.h>
+#include <unistd.h>
 #include "config.h"
 #include "segm.h"
 #include "intr.h"
@@ -131,26 +133,12 @@ void kmain(void)
 
 static void mount_boot_fs(void)
 {
-	struct fs_node *n;
-	char buf[32];
-	int sz;
-
-	fs_mount(DEV_MEMDISK, 0, 0, 0);
-	n = fs_open("/foo", FSO_CREATE);
-	fs_write(n, "hello\n", 6);
-	fs_close(n);
-
-	printf("printing file contents:\n");
-	n = fs_open("/foo", 0);
-	sz = fs_read(n, buf, sizeof buf);
-	fs_close(n);
-
-	buf[sz] = 0;
-	printf("%s\n", buf);
-
-	/*
 	int i, npart, num_mounts = 0;
 	struct partition ptab[32];
+	char name[64];
+	struct fs_node *fsn;
+
+	fs_mount(DEV_MEMDISK, 0, 0, 0);
 
 	if((npart = read_partitions(-1, ptab, sizeof ptab / sizeof *ptab)) <= 0) {
 		return;
@@ -159,11 +147,17 @@ static void mount_boot_fs(void)
 	print_partition_table(ptab, npart);
 
 	for(i=0; i<npart; i++) {
-		if(fs_mount(-1, ptab[i].start_sect, ptab[i].size_sect, 0) != -1) {
+		sprintf(name, "/part%d", i + 1);
+		mkdir(name, 0777);
+
+		fsn = fs_open(name, 0);
+		assert(fsn);
+
+		if(fs_mount(-1, ptab[i].start_sect, ptab[i].size_sect, fsn) != -1) {
 			num_mounts++;
 		}
+		fs_close(fsn);
 	}
-	*/
 }
 
 static void print_intr_state(void)

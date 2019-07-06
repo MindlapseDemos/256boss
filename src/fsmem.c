@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
+#include <alloca.h>
 #include "fs.h"
 #include "panic.h"
 
@@ -63,6 +64,7 @@ struct memfs_node {
 	char name[MAX_NAME + 4];
 	struct memfs_node *parent;
 	struct memfs_node *next;
+	struct fs_node *fsnode;	/* we need it for crossing mounts in fs_open */
 };
 
 
@@ -133,6 +135,19 @@ static void destroy(struct filesys *fs)
 	free(fs);
 }
 
+static struct fs_node *open_mount(struct filesys *fs, const char *path, unsigned int flags)
+{
+	char *newpath;
+
+	newpath = alloca(strlen(path) + 2);
+	newpath[0] = '/';
+	strcpy(newpath + 1, path);
+
+	return fs->fsop->open(fs, newpath, flags);
+}
+
+#define NODE_IS_MNTPT(n)	((n)->fsnode && (n)->fsnode->mnt)
+
 static struct fs_node *open(struct filesys *fs, const char *path, unsigned int flags)
 {
 	struct memfs_node *node, *parent;
@@ -156,6 +171,12 @@ static struct fs_node *open(struct filesys *fs, const char *path, unsigned int f
 			errno = ENOTDIR;
 			return 0;
 		}
+		/* check if it's another filesystem hanging off this directory, and if
+		 * so, recursively call that open function to complete the operation
+		 */
+		if(NODE_IS_MNTPT(node)) {
+			return open_mount(node->fsnode->mnt, path, flags);
+		}
 
 		path = fs_path_next((char*)path, name, sizeof name);
 		parent = node;
@@ -176,6 +197,18 @@ static struct fs_node *open(struct filesys *fs, const char *path, unsigned int f
 		}
 	}
 
+	/* we need to check for mount points here too, because the check in the loop
+	 * above is not going to be reached when the mount point is the last part of
+	 * the path string (for instance opendir("/mnt/foo"))
+	 */
+	if(NODE_IS_MNTPT(node)) {
+		return open_mount(node->fsnode->mnt, path, flags);
+	}
+
+	if(flags & FSO_EXCL) {
+		errno = EEXIST;
+		return 0;
+	}
 	return create_fsnode(fs, node);
 }
 
@@ -185,7 +218,7 @@ static struct fs_node *create_fsnode(struct filesys *fs, struct memfs_node *n)
 	struct ofile *of;
 	struct odir *od;
 
-	if(!(fsn = malloc(sizeof *fsn))) {
+	if(!(fsn = calloc(1, sizeof *fsn))) {
 		errno = ENOMEM;
 		return 0;
 	}
@@ -208,6 +241,10 @@ static struct fs_node *create_fsnode(struct filesys *fs, struct memfs_node *n)
 		od->dir = &n->dir;
 		od->cur = n->dir.clist;
 		fsn->data = od;
+	}
+
+	if(!n->fsnode) {
+		n->fsnode = fsn;
 	}
 
 	fsn->fs = fs;
