@@ -80,6 +80,7 @@ static int write(struct fs_node *node, void *buf, int sz);
 static int rewinddir(struct fs_node *node);
 static struct fs_dirent *readdir(struct fs_node *node);
 static int rename(struct fs_node *node, const char *name);
+static int remove(struct fs_node *node);
 
 static struct fs_node *create_fsnode(struct filesys *fs, struct memfs_node *n);
 
@@ -100,7 +101,7 @@ static struct fs_operations fs_mem_ops = {
 
 	rewinddir, readdir,
 
-	rename
+	rename, remove
 };
 
 
@@ -414,6 +415,50 @@ static int rename(struct fs_node *node, const char *name)
 	strncpy(n->name, name, MAX_NAME);
 	n->name[MAX_NAME] = 0;
 	return 0;
+}
+
+static int remove(struct fs_node *node)
+{
+	int res = -1;
+	struct odir *od = 0;
+	struct ofile *of = 0;
+	struct memfs_node *n, *par, *prev, dummy;
+
+	if(node->type == FSNODE_DIR) {
+		od = node->data;
+		n = (struct memfs_node*)od->dir;
+
+		if(n->dir.clist) {
+			errno = EEXIST;
+			return -1;
+		}
+	} else {
+		of = node->data;
+		n = (struct memfs_node*)of->file;
+	}
+	par = n->parent;
+
+	if(!par) {
+		errno = EBUSY;
+		return -1;
+	}
+
+	dummy.next = par->dir.clist;
+	prev = &dummy;
+	while(prev->next) {
+		if(prev->next == n) {
+			if(par->dir.ctail == n) {
+				par->dir.ctail = prev;
+			}
+			prev->next = n->next;
+			free_node(n);
+			res = 0;
+			break;
+		}
+		prev = prev->next;
+	}
+	par->dir.clist = dummy.next;
+	return res;
 }
 
 static struct memfs_node *alloc_node(int type)

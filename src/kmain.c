@@ -170,8 +170,12 @@ static void mount_boot_fs(void)
 			if(sane_fsname(fs->name)) {
 				fs_rename(fsn, fs->name);
 			}
+			fs_close(fsn);
+
+		} else {
+			fs_close(fsn);
+			rmdir(name);
 		}
-		fs_close(fsn);
 	}
 }
 

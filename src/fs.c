@@ -174,6 +174,12 @@ int fs_rename(struct fs_node *node, const char *name)
 	return fsop->rename(node, name);
 }
 
+int fs_remove(struct fs_node *node)
+{
+	struct fs_operations *fsop = node->fs->fsop;
+	return fsop->remove(node);
+}
+
 long fs_filesize(struct fs_node *node)
 {
 	struct fs_operations *fsop = node->fs->fsop;

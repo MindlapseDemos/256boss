@@ -175,6 +175,7 @@ static int write(struct fs_node *node, void *buf, int sz);
 static int rewinddir(struct fs_node *node);
 static struct fs_dirent *readdir(struct fs_node *node);
 static int rename(struct fs_node *node, const char *name);
+static int remove(struct fs_node *node);
 
 static struct fat_dir *load_dir(struct fatfs *fs, struct fat_dirent *dent);
 static void parse_dir_entries(struct fat_dir *dir);
@@ -205,7 +206,7 @@ static struct fs_operations fs_fat_ops = {
 
 	rewinddir, readdir,
 
-	rename
+	rename, remove
 };
 
 static unsigned char sectbuf[512];
@@ -233,9 +234,10 @@ struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 	bpb16 = (struct bparam_ext16*)(sectbuf + sizeof *bpb);
 	bpb32 = (struct bparam_ext32*)(sectbuf + sizeof *bpb);
 
-	assert(bpb->sect_bytes == 512);
-
 	if(bpb->jmp[0] != 0xeb || bpb->jmp[2] != 0x90) {
+		return 0;
+	}
+	if(bpb->sect_bytes != 512) {
 		return 0;
 	}
 
@@ -641,6 +643,12 @@ static struct fs_dirent *readdir(struct fs_node *node)
 
 static int rename(struct fs_node *node, const char *name)
 {
+	return -1;	/* TODO */
+}
+
+static int remove(struct fs_node *node)
+{
+	errno = EPERM;
 	return -1;	/* TODO */
 }
 

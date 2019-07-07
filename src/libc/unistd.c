@@ -47,3 +47,15 @@ int mkdir(const char *path, int mode)
 	fs_close(fsn);
 	return 0;
 }
+
+int rmdir(const char *path)
+{
+	struct fs_node *fsn;
+
+	if(!(fsn = fs_open(path, FSO_DIR))) {
+		return -1;
+	}
+	fs_remove(fsn);
+	fs_close(fsn);
+	return 0;
+}

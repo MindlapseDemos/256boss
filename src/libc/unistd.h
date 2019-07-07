@@ -22,5 +22,6 @@ int chdir(const char *path);
 char *getcwd(char *buf, int sz);
 
 int mkdir(const char *path, int mode);
+int rmdir(const char *path);
 
 #endif	/* UNISTD_H_ */

@@ -66,6 +66,7 @@ struct fs_operations {
 	struct fs_dirent *(*readdir)(struct fs_node *node);
 
 	int (*rename)(struct fs_node *node, const char *name);
+	int (*remove)(struct fs_node *node);
 };
 
 struct filesys {
@@ -102,6 +103,7 @@ struct fs_node *fs_open(const char *path, unsigned int flags);
 int fs_close(struct fs_node *node);
 
 int fs_rename(struct fs_node *node, const char *name);
+int fs_remove(struct fs_node *node);
 
 long fs_filesize(struct fs_node *node);
 int fs_seek(struct fs_node *node, int offs, int whence);
