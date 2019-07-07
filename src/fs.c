@@ -19,7 +19,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
+#include <alloca.h>
 #include "fs.h"
+#include "mtab.h"
 #include "panic.h"
 
 struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size);
@@ -64,6 +66,8 @@ static char *cwdpath_end = cwdpath;
 int fs_chdir(const char *path)
 {
 	struct fs_node *node;
+	char *uppath = 0;
+	int uplen;
 
 	if(!path || !*path) {
 		return -1;
@@ -71,6 +75,24 @@ int fs_chdir(const char *path)
 
 	if(strcmp(path, ".") == 0) {
 		return 0;
+	}
+	if(strcmp(path, "..") == 0) {
+		char *endptr;
+
+		if(cwdpath_end <= cwdpath + 1) {
+			return -1;
+		}
+
+		endptr = cwdpath + (cwdpath_end - cwdpath);
+		while(endptr > cwdpath && *--endptr != '/');
+		if(endptr == cwdpath) endptr++;
+
+		uplen = endptr - cwdpath;
+		uppath = alloca(uplen + 1);
+		memcpy(uppath, cwdpath, uplen);
+		uppath[uplen] = 0;
+
+		path = uppath;
 	}
 
 	if(!(node = fs_open(path, 0))) {
@@ -81,11 +103,10 @@ int fs_chdir(const char *path)
 		return -1;
 	}
 
-	if(strcmp(path, "..") == 0) {
-		assert(cwdpath_end > cwdpath + 1);
-		while(cwdpath_end > cwdpath && *--cwdpath_end != '/');
-		if(cwdpath_end == cwdpath) cwdpath_end++;
-		*cwdpath_end = 0;
+	if(uppath) {
+		memcpy(cwdpath, uppath, uplen + 1);
+		cwdpath_end = cwdpath + uplen;
+
 	} else {
 		int len = strlen(path);
 		if(cwdpath_end - cwdpath + len > sizeof cwdpath) {
@@ -113,6 +134,7 @@ char *fs_getcwd(void)
 	return cwdpath;
 }
 
+/* TODO normalize path */
 struct fs_node *fs_open(const char *path, unsigned int flags)
 {
 	struct filesys *fs;

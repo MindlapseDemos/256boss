@@ -18,8 +18,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef DATAPATH_H_
 #define DATAPATH_H_
 
-char *datapath;
-
 int init_datapath(void);
 char *datafile(const char *fname);
 

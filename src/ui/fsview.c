@@ -177,7 +177,7 @@ static int should_ignore(struct fsview *fsv, const char *name)
 		return 1;
 	}
 	if(strcmp(name, "..") == 0) {
-		return 0;
+		return 1;
 	}
 	if(!fsv->show_hidden && name[0] == '.') {
 		return 1;
@@ -187,7 +187,7 @@ static int should_ignore(struct fsview *fsv, const char *name)
 
 static int load_cur_dir(struct fsview *fsv)
 {
-	int nfiles = 0, ndirs = 0;
+	int nfiles = 0, ndirs = 1;	/* always have a .. entry */
 	DIR *dir;
 	struct dirent *dent;
 	struct fsview_dirent *fsvent;
@@ -221,6 +221,20 @@ static int load_cur_dir(struct fsview *fsv)
 	fsv->num_entries = nfiles + ndirs;
 	fsv->num_files = 0;
 	fsv->num_dirs = 0;
+
+	/* manually add .. entry */
+	if(!(name = malloc(3))) {
+		fprintf(stderr, "failed to allocate entry name\n");
+		closedir(dir);
+		fsv_destroy(fsv);
+		return -1;
+	}
+	strcpy(name, "..");
+	fsv->dirs->name = name;
+	fsv->dirs->type = DT_DIR;
+	fsv->dirs->size = 0;
+	fsv->dirs++;
+	fsv->num_dirs++;
 
 	while((dent = readdir(dir))) {
 		if(should_ignore(fsv, dent->d_name)) {
