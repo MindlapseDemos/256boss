@@ -131,11 +131,24 @@ void kmain(void)
 	}
 }
 
+static int sane_fsname(const char *name)
+{
+	const char *p = name;
+	while(*p && p - name < 64) {
+		if(!isprint(*p)) {
+			return 0;
+		}
+		p++;
+	}
+	return *p == 0 ? 1 : 0;
+}
+
 static void mount_boot_fs(void)
 {
-	int i, npart, num_mounts = 0;
+	int i, npart;
 	struct partition ptab[32];
 	char name[64];
+	struct filesys *fs;
 	struct fs_node *fsn;
 
 	fs_mount(DEV_MEMDISK, 0, 0, 0);
@@ -147,14 +160,16 @@ static void mount_boot_fs(void)
 	print_partition_table(ptab, npart);
 
 	for(i=0; i<npart; i++) {
-		sprintf(name, "/part%d", i + 1);
+		sprintf(name, "/partition%d", i + 1);
 		mkdir(name, 0777);
 
 		fsn = fs_open(name, 0);
 		assert(fsn);
 
-		if(fs_mount(-1, ptab[i].start_sect, ptab[i].size_sect, fsn) != -1) {
-			num_mounts++;
+		if((fs = fs_mount(-1, ptab[i].start_sect, ptab[i].size_sect, fsn)) && fs->name) {
+			if(sane_fsname(fs->name)) {
+				fs_rename(fsn, fs->name);
+			}
 		}
 		fs_close(fsn);
 	}

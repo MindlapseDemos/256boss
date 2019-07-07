@@ -214,6 +214,13 @@ char *strcat(char *dest, const char *src)
 	return dest;
 }
 
+char *strncpy(char *dest, const char *src, int n)
+{
+	char *dptr = dest;
+	while(n-- > 0 && (*dptr++ = *src++));
+	return dest;
+}
+
 
 static const char *errstr[] = {
 	"Success",
@@ -230,7 +237,8 @@ static const char *errstr[] = {
 	"Permission denied",
 	"Not a directory",
 	"Is a directory",
-	0,0,0,0,0,0,
+	"Does not exist",
+	0,0,0,0,0,
 	0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,
 	0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,
 	0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,

@@ -174,6 +174,7 @@ static int read(struct fs_node *node, void *buf, int sz);
 static int write(struct fs_node *node, void *buf, int sz);
 static int rewinddir(struct fs_node *node);
 static struct fs_dirent *readdir(struct fs_node *node);
+static int rename(struct fs_node *node, const char *name);
 
 static struct fat_dir *load_dir(struct fatfs *fs, struct fat_dirent *dent);
 static void parse_dir_entries(struct fat_dir *dir);
@@ -202,7 +203,9 @@ static struct fs_operations fs_fat_ops = {
 	seek, tell,
 	read, write,
 
-	rewinddir, readdir
+	rewinddir, readdir,
+
+	rename
 };
 
 static unsigned char sectbuf[512];
@@ -347,6 +350,7 @@ struct filesys *fsfat_create(int dev, uint64_t start, uint64_t size)
 		panic("FAT: create failed to allocate memory for the filesystem structure\n");
 	}
 	fs->type = FSTYPE_FAT;
+	fs->name = fatfs->label;
 	fs->fsop = &fs_fat_ops;
 	fs->data = fatfs;
 
@@ -633,6 +637,11 @@ static struct fs_dirent *readdir(struct fs_node *node)
 	}
 
 	return dir->fsent + dir->cur_ent++;
+}
+
+static int rename(struct fs_node *node, const char *name)
+{
+	return -1;	/* TODO */
 }
 
 static struct fat_dir *load_dir(struct fatfs *fs, struct fat_dirent *dent)

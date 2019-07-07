@@ -79,6 +79,7 @@ static int read(struct fs_node *node, void *buf, int sz);
 static int write(struct fs_node *node, void *buf, int sz);
 static int rewinddir(struct fs_node *node);
 static struct fs_dirent *readdir(struct fs_node *node);
+static int rename(struct fs_node *node, const char *name);
 
 static struct fs_node *create_fsnode(struct filesys *fs, struct memfs_node *n);
 
@@ -97,7 +98,9 @@ static struct fs_operations fs_mem_ops = {
 	seek, tell,
 	read, write,
 
-	rewinddir, readdir
+	rewinddir, readdir,
+
+	rename
 };
 
 
@@ -121,6 +124,7 @@ struct filesys *fsmem_create(int dev, uint64_t start, uint64_t size)
 		panic("MEMFS: failed to allocate memory for the filesystem structure\n");
 	}
 	fs->type = FSTYPE_MEM;
+	fs->name = 0;
 	fs->fsop = &fs_mem_ops;
 	fs->data = memfs;
 
@@ -404,6 +408,13 @@ static struct fs_dirent *readdir(struct fs_node *node)
 	return fsd;
 }
 
+static int rename(struct fs_node *node, const char *name)
+{
+	struct memfs_node *n = (struct memfs_node*)((struct odir*)node->data)->dir;
+	strncpy(n->name, name, MAX_NAME);
+	n->name[MAX_NAME] = 0;
+	return 0;
+}
 
 static struct memfs_node *alloc_node(int type)
 {

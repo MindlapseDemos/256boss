@@ -32,14 +32,14 @@ static struct filesys *(*createfs[])(int, uint64_t, uint64_t) = {
 	fsfat_create
 };
 
-int fs_mount(int dev, uint64_t start, uint64_t size, struct fs_node *parent)
+struct filesys *fs_mount(int dev, uint64_t start, uint64_t size, struct fs_node *parent)
 {
 	int i;
 	struct filesys *fs;
 
 	if(!parent && rootfs) {
 		printf("fs_mount error: root filesystem already mounted!\n");
-		return -1;
+		return 0;
 	}
 
 	for(i=0; i<NUM_FSTYPES; i++) {
@@ -52,12 +52,12 @@ int fs_mount(int dev, uint64_t start, uint64_t size, struct fs_node *parent)
 				parent->mnt = fs;
 				mtab_add(parent, fs);
 			}
-			return 0;
+			return fs;
 		}
 	}
 
 	printf("failed to mount filesystem dev: %d, start %llu\n", dev, (unsigned long long)start);
-	return -1;
+	return 0;
 }
 
 static char cwdpath[1024];
@@ -166,6 +166,12 @@ int fs_close(struct fs_node *node)
 	fsop = node->fs->fsop;
 	fsop->close(node);
 	return 0;
+}
+
+int fs_rename(struct fs_node *node, const char *name)
+{
+	struct fs_operations *fsop = node->fs->fsop;
+	return fsop->rename(node, name);
 }
 
 long fs_filesize(struct fs_node *node)

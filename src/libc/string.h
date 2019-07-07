@@ -45,6 +45,8 @@ int strncasecmp(const char *s1, const char *s2, int n);
 char *strcpy(char *dest, const char *src);
 char *strcat(char *dest, const char *src);
 
+char *strncpy(char *dest, const char *src, int n);
+
 char *strerror(int err);
 
 #endif	/* STRING_H_ */

@@ -64,10 +64,13 @@ struct fs_operations {
 
 	int (*rewinddir)(struct fs_node *node);
 	struct fs_dirent *(*readdir)(struct fs_node *node);
+
+	int (*rename)(struct fs_node *node, const char *name);
 };
 
 struct filesys {
 	int type;
+	char *name;
 	struct fs_operations *fsop;
 	void *data;
 };
@@ -90,13 +93,15 @@ struct fs_dirent {
 struct filesys *rootfs;
 struct fs_node *cwdnode;	/* current working directory node */
 
-int fs_mount(int dev, uint64_t start, uint64_t size, struct fs_node *parent);
+struct filesys *fs_mount(int dev, uint64_t start, uint64_t size, struct fs_node *parent);
 
 int fs_chdir(const char *path);
 char *fs_getcwd(void);
 
 struct fs_node *fs_open(const char *path, unsigned int flags);
 int fs_close(struct fs_node *node);
+
+int fs_rename(struct fs_node *node, const char *name);
 
 long fs_filesize(struct fs_node *node);
 int fs_seek(struct fs_node *node, int offs, int whence);
