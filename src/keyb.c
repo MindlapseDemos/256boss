@@ -1,6 +1,6 @@
 /*
 pcboot - bootable PC demo/game kernel
-Copyright (C) 2018  John Tsiombikas <nuclear@member.fsf.org>
+Copyright (C) 2018-2019  John Tsiombikas <nuclear@member.fsf.org>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -274,6 +274,9 @@ static void kbintr()
 	ext = 0;
 
 	if(press) {
+		if(key == KB_DEL && (keystate[KB_LALT] || keystate[KB_RALT]) && (keystate[KB_LCTRL] || keystate[KB_RCTRL])) {
+			reboot();
+		}
 		/* append to buffer */
 		buffer[buf_widx] = key;
 		ADVANCE(buf_widx);

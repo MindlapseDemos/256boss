@@ -31,6 +31,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "comloader.h"
 #include "video.h"
 #include "tui/textui.h"
+#include "power.h"
 
 static void print_prompt(void);
 
@@ -48,6 +49,7 @@ static int cmd_echo(int argc, char **argv);
 
 static int cmd_run(int argc, char **argv);
 
+static int cmd_reboot(int argc, char **argv);
 static int cmd_memdbg(int argc, char **argv);
 
 #define INBUF_SIZE		256
@@ -110,6 +112,7 @@ static struct {
 	{"echo", cmd_echo},
 	{"clear", cmd_clear},
 	{"run", cmd_run},
+	{"reboot", cmd_reboot},
 	{"memdbg", cmd_memdbg},
 	{"help", cmd_help},
 	{0, 0}
@@ -411,6 +414,12 @@ static int cmd_run(int argc, char **argv)
 
 	set_vga_mode(3);
 	con_clear();
+	return 0;
+}
+
+static int cmd_reboot(int argc, char **argv)
+{
+	reboot();
 	return 0;
 }
 
