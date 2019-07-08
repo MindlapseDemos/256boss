@@ -82,3 +82,20 @@ void print_mode_info(struct vbe_mode_info *mi)
 	printf("blue bits: %d (mask: %x)\n", (int)mi->bmask_size, maskbits[mi->bmask_size] << mi->bpos);
 	printf("framebuffer address: %x\n", (unsigned int)mi->fb_addr);
 }
+
+int vbe_get_edid(struct vbe_edid *edid)
+{
+	struct int86regs regs;
+
+	memset(&regs, 0, sizeof regs);
+	regs.es = (uint32_t)low_mem_buffer >> 4;
+	regs.eax = 0x4f15;
+	regs.ebx = 1;
+	int86(0x10, &regs);
+
+	if((regs.eax & 0xffff) != 0x4f) {
+		return -1;
+	}
+	memcpy(edid, low_mem_buffer, sizeof *edid);
+	return 0;
+}
