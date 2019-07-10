@@ -77,8 +77,11 @@ struct vbe_edid_timing {
 	unsigned char features;
 } __attribute__((packed));
 
+
+#define VBE_EDID_MAGIC	"\0\xff\xff\xff\xff\xff\xff\0"
+
 struct vbe_edid {
-	char padding[8];
+	char magic[8];
 	uint16_t vendor;
 	uint16_t product;
 	uint32_t serial;
@@ -109,5 +112,7 @@ int vbe_set_mode(int mode);
 void print_mode_info(struct vbe_mode_info *modei);
 
 int vbe_get_edid(struct vbe_edid *edid);
+int edid_preferred_resolution(struct vbe_edid *edid, int *xres, int *yres);
+void print_edid(struct vbe_edid *edid);
 
 #endif	/* VBE_H_ */

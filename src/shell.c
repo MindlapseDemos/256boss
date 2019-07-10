@@ -32,6 +32,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "video.h"
 #include "tui/textui.h"
 #include "power.h"
+#include "vbe.h"
 
 static void print_prompt(void);
 
@@ -51,6 +52,7 @@ static int cmd_run(int argc, char **argv);
 
 static int cmd_reboot(int argc, char **argv);
 static int cmd_memdbg(int argc, char **argv);
+static int cmd_vbe(int argc, char **argv);
 
 #define INBUF_SIZE		256
 
@@ -114,6 +116,7 @@ static struct {
 	{"run", cmd_run},
 	{"reboot", cmd_reboot},
 	{"memdbg", cmd_memdbg},
+	{"vbe", cmd_vbe},
 	{"help", cmd_help},
 	{0, 0}
 };
@@ -432,6 +435,28 @@ static int cmd_memdbg(int argc, char **argv)
 	} else {
 		printf("usage: %s pages\n", argv[0]);
 		return -1;
+	}
+	return 0;
+}
+
+static int cmd_vbe(int argc, char **argv)
+{
+	if(strcmp(argv[1], "edid") == 0) {
+		struct vbe_edid edid;
+		if(vbe_get_edid(&edid) == -1) {
+			printf("failed to get EDID\n");
+			return -1;
+		}
+		print_edid(&edid);
+
+	} else {
+		printf("usage: %s <subcmd>\n", argv[0]);
+		printf("Subcommands:\n");
+		printf(" edid: print monitor EDID information if available\n");
+		printf(" help: print subcommand help\n");
+		if(strcmp(argv[1], "help") != 0) {
+			return -1;
+		}
 	}
 	return 0;
 }

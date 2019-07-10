@@ -29,6 +29,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "contty.h"
 #include "timer.h"
 #include "tui/textui.h"
+#include "gui/gfxui.h"
 #include "datapath.h"
 
 void ssfontbig(void *fb, int x, int y, int g);
@@ -119,6 +120,11 @@ void splash_screen(void)
 			case '2':
 			case KB_F2:
 				textui();
+				goto end;
+
+			case '4':
+			case KB_F4:
+				gfxui();
 				goto end;
 
 			case '8':

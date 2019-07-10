@@ -99,3 +99,34 @@ int vbe_get_edid(struct vbe_edid *edid)
 	memcpy(edid, low_mem_buffer, sizeof *edid);
 	return 0;
 }
+
+int edid_preferred_resolution(struct vbe_edid *edid, int *xres, int *yres)
+{
+	if(memcmp(edid->magic, VBE_EDID_MAGIC, 8) != 0) {
+		return -1;
+	}
+
+	*xres = (int)edid->timing[0].hactive_lsb | ((int)(edid->timing[0].hact_hblank_msb & 0xf0) << 4);
+	*yres = (int)edid->timing[0].vactive_lsb | ((int)(edid->timing[0].vact_vblank_msb & 0xf0) << 4);
+	return 0;
+}
+
+void print_edid(struct vbe_edid *edid)
+{
+	char vendor[4];
+	int xres, yres;
+
+	if(memcmp(edid->magic, VBE_EDID_MAGIC, 8) != 0) {
+		printf("invalid EDID magic\n");
+		return;
+	}
+
+	vendor[0] = (edid->vendor >> 10) & 0x1f;
+	vendor[1] = (edid->vendor >> 5) & 0x1f;
+	vendor[2] = edid->vendor & 0x1f;
+	vendor[3] = 0;
+	printf("Manufacturer: %s\n", vendor);
+
+	edid_preferred_resolution(edid, &xres, &yres);
+	printf("Preferred resolution: %dx%d\n", xres, yres);
+}
