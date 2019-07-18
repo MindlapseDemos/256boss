@@ -21,11 +21,17 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 int gfxui(void)
 {
 	struct vbe_edid edid;
+	struct video_mode vinf;
+	int i, xres, yres, mode = -1;
 
-	if(vbe_get_edid(&edid) == -1) {
-		printf("failed to get EDID\n");
-		return -1;
+	if(vbe_get_edid(&edid) == 0 && edid_preferred_resolution(&edid, &xres, &yres) == 0) {
+		printf("EDID: preferred resolution: %dx%d\n", xres, yres);
+		mode = find_video_mode(xres, yres, 32);
 	}
-	print_edid(&edid);
+
+	if(mode == -1) {
+
+	}
+
 	return 0;
 }
