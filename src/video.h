@@ -30,7 +30,7 @@ struct video_mode {
 void set_vga_mode(int mode);
 
 void *set_video_mode(int mode);
-int find_video_mode(int xsz, int ysz, int bpp);
+int find_video_mode_idx(int xsz, int ysz, int bpp);
 
 int video_mode_count(void);
 int video_mode_info(int n, struct video_mode *vid);

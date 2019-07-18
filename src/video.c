@@ -103,10 +103,9 @@ void *set_video_mode(int mode)
 	return (void*)mode_info->fb_addr;
 }
 
-int find_video_mode(int xsz, int ysz, int bpp)
+int find_video_mode_idx(int xsz, int ysz, int bpp)
 {
-	int i;
-	uint16_t best = 0;
+	int i, best = -1;
 	struct vbe_mode_info *inf;
 
 	if(init_once() == -1) return -1;
@@ -117,11 +116,11 @@ int find_video_mode(int xsz, int ysz, int bpp)
 			continue;
 		}
 		if(SAME_BPP(inf->bpp, bpp)) {
-			best = modes[i];
+			best = i;
 		}
 	}
 
-	if(!best) {
+	if(best == -1) {
 		printf("Requested video mode (%dx%d %dbpp) is unavailable\n", xsz, ysz, bpp);
 		return -1;
 	}

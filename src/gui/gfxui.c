@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include "vbe.h"
 #include "video.h"
 #include "keyb.h"
@@ -35,14 +36,25 @@ int gfxui(void)
 {
 	struct vbe_edid edid;
 	struct video_mode vinf, *vmodes;
-	int i, xres, yres, nmodes, mode = -1;
+	int i, xres, yres, nmodes;
+
+	vmode.mode = -1;
 
 	if(vbe_get_edid(&edid) == 0 && edid_preferred_resolution(&edid, &xres, &yres) == 0) {
 		printf("EDID: preferred resolution: %dx%d\n", xres, yres);
-		mode = find_video_mode(xres, yres, 32);
+		if((i = find_video_mode_idx(xres, yres, 32)) >= 0) {
+			assert(i < video_mode_count());
+			video_mode_info(i, &vinf);
+
+			if((fbptr = set_video_mode(vinf.mode))) {
+				printf("set video mode: %x (%dx%d %dbpp)\n", vinf.mode, vinf.width,
+						vinf.height, vinf.bpp);
+				vmode = vinf;
+			}
+		}
 	}
 
-	if(mode == -1) {
+	if(vmode.mode == -1) {
 		nmodes = video_mode_count();
 		if(!(vmodes = malloc(nmodes * sizeof *vmodes))) {
 			printf("failed to allocate video modes array (%d modes)\n", nmodes);
@@ -105,7 +117,7 @@ end:
 
 static void draw(void)
 {
-	memset(fbptr, 0xff, vmode.width * vmode.height * vmode.bpp / 8);
+	memset(fbptr, 0x80, vmode.width * vmode.height * vmode.bpp / 8);
 }
 
 static int modecmp(const void *a, const void *b)
