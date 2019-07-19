@@ -43,6 +43,8 @@ void free_cfglist(struct cfglist *cfg);
 struct cfglist *load_cfglist(const char *fname);
 int save_cfglist(struct cfglist *cfg, const char *fname);
 
+struct cfgopt *cfg_getopt(struct cfglist *cfg, const char *key);
+
 const char *cfg_getstr(struct cfglist *cfg, const char *key, const char *defval);
 int cfg_getint(struct cfglist *cfg, const char *key, int defval);
 

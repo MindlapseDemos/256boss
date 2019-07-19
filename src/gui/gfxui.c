@@ -24,6 +24,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "keyb.h"
 #include "contty.h"
 #include "asmops.h"
+#include "cfgfile.h"
+#include "datapath.h"
 #include "ui/fsview.h"
 
 static void draw(void);
@@ -36,50 +38,72 @@ int gfxui(void)
 {
 	struct vbe_edid edid;
 	struct video_mode vinf, *vmodes;
-	int i, xres, yres, nmodes;
+	int i, xres, yres, nmodes, mode_idx = -1;
+	const char *vendor;
+	struct cfglist *cfg;
+	struct cfgopt *opt;
 
-	vmode.mode = -1;
-
-	if(vbe_get_edid(&edid) == 0 && edid_preferred_resolution(&edid, &xres, &yres) == 0) {
-		printf("EDID: preferred resolution: %dx%d\n", xres, yres);
-		if((i = find_video_mode_idx(xres, yres, 32)) >= 0) {
-			assert(i < video_mode_count());
-			video_mode_info(i, &vinf);
-
-			if((fbptr = set_video_mode(vinf.mode))) {
-				printf("set video mode: %x (%dx%d %dbpp)\n", vinf.mode, vinf.width,
-						vinf.height, vinf.bpp);
-				vmode = vinf;
+	if((cfg = load_cfglist(datafile("256boss.cfg")))) {
+		if((opt = cfg_getopt(cfg, "resolution"))) {
+			char *endp;
+			xres = strtol(opt->valstr, &endp, 10);
+			if(endp != opt->valstr) {
+				yres = atoi(endp + 1);
 			}
+			mode_idx = find_video_mode_idx(xres, yres, 0);
+		}
+		free_cfglist(cfg);
+	}
+
+	if(mode_idx == -1 && (vendor = get_video_vendor()) && strstr(vendor, "SeaBIOS")) {
+		mode_idx = find_video_mode_idx(800, 600, 0);
+	}
+
+	if(mode_idx == -1 && vbe_get_edid(&edid) == 0 && edid_preferred_resolution(&edid, &xres, &yres) == 0) {
+		printf("EDID: preferred resolution: %dx%d\n", xres, yres);
+		mode_idx = find_video_mode_idx(xres, yres, 0);
+	}
+
+	nmodes = video_mode_count();
+	if(!(vmodes = malloc(nmodes * sizeof *vmodes))) {
+		printf("failed to allocate video modes array (%d modes)\n", nmodes);
+		return -1;
+	}
+
+	for(i=0; i<nmodes; i++) {
+		video_mode_info(i, &vinf);
+		vmodes[i] = vinf;
+	}
+
+	if(mode_idx >= 0) {
+		if(!(fbptr = set_video_mode(vmodes[mode_idx].mode))) {
+			printf("failed to set video mode: %x (%dx%d %dbpp)\n", mode_idx,
+					vmodes[mode_idx].width, vmodes[mode_idx].height, vmodes[mode_idx].bpp);
+			mode_idx = -1;
+		} else {
+			vmode = vmodes[mode_idx];
+			printf("video mode: %x (%dx%d %dbpp)\n", vmode.mode, vmode.width,
+					vmode.height, vmode.bpp);
 		}
 	}
 
-	if(vmode.mode == -1) {
-		nmodes = video_mode_count();
-		if(!(vmodes = malloc(nmodes * sizeof *vmodes))) {
-			printf("failed to allocate video modes array (%d modes)\n", nmodes);
-			return -1;
-		}
-
-		for(i=0; i<nmodes; i++) {
-			video_mode_info(i, &vinf);
-			vmodes[i] = vinf;
-		}
-
+	if(mode_idx == -1) {
 		qsort(vmodes, nmodes, sizeof *vmodes, modecmp);
 
 		for(i=0; i<nmodes; i++) {
 			if((fbptr = set_video_mode(vmodes[i].mode))) {
 				vmode = vmodes[i];
+				printf("video mode: %x (%dx%d %dbpp)\n", vmode.mode, vmode.width,
+						vmode.height, vmode.bpp);
 				break;
 			}
 		}
-		free(vmodes);
 		if(i >= nmodes) {
 			printf("failed to find a suitable video mode\n");
 			return -1;
 		}
 	}
+	free(vmodes);
 
 	for(;;) {
 		int c;

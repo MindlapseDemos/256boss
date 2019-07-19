@@ -39,6 +39,9 @@ int get_color_bits(int *rbits, int *gbits, int *bbits);
 int get_color_mask(unsigned int *rmask, unsigned int *gmask, unsigned int *bmask);
 int get_color_shift(int *rshift, int *gshift, int *bshift);
 
+const char *get_video_vendor(void);
+int get_video_mem_size(void);
+
 /* defined in video_asm.s */
 void wait_vsync(void);
 void set_pal_entry(unsigned char idx, unsigned char r, unsigned char g, unsigned char b);

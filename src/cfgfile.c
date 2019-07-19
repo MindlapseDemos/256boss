@@ -82,6 +82,7 @@ struct cfglist *load_cfglist(const char *fname)
 			continue;
 		}
 
+		printf("CFG setstr(%s, %s)\n", key, val);
 		if(cfg_setstr(cfg, key, val) == -1) {
 			printf("load_cfglist: failed to add new key/value pair\n");
 			continue;
@@ -94,6 +95,22 @@ struct cfglist *load_cfglist(const char *fname)
 int save_cfglist(struct cfglist *cfg, const char *fname)
 {
 	return -1;	/* TODO */
+}
+
+struct cfgopt *cfg_getopt(struct cfglist *cfg, const char *key)
+{
+	struct cfgopt *opt;
+
+	if(!cfg) return 0;
+
+	opt = cfg->head;
+	while(opt) {
+		if(strcasecmp(opt->key, key) == 0) {
+			break;
+		}
+		opt = opt->next;
+	}
+	return opt;
 }
 
 const char *cfg_getstr(struct cfglist *cfg, const char *key, const char *defval)
@@ -142,6 +159,7 @@ int cfg_setstr(struct cfglist *cfg, const char *key, const char *val)
 		free(opt);
 		return -1;
 	}
+	strcpy(opt->key, key);
 	strcpy(opt->valstr, val);
 	opt->ival = strtol(val, &endp, 0);
 	opt->type = (endp != val) ? CFGOPT_INT : CFGOPT_STR;
