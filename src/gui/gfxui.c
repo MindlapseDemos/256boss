@@ -28,13 +28,65 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "datapath.h"
 #include "ui/fsview.h"
 
+#include "widget.h"
+
+static int video_init(void);
 static void draw(void);
 static int modecmp(const void *a, const void *b);
 
 static struct video_mode vmode;
 static void *fbptr;
 
+static struct gui_gfx ggfx;
+static struct gui_widget win;
+
 int gfxui(void)
+{
+	if(video_init() == -1) {
+		return -1;
+	}
+
+	gui_setgfx(&ggfx);
+	gui_framebuffer(fbptr, vmode.width, vmode.height, vmode.width * vmode.bpp / 8);
+	gui_pixelformat(vmode.bpp, vmode.rbits, vmode.gbits, vmode.bbits);
+
+	gui_window(&win, 10, 10, 100, 100, "testwin", 0);
+
+	for(;;) {
+		int c;
+
+		halt_cpu();
+		while((c = kb_getkey()) >= 0) {
+			/* global overrides for all views */
+			switch(c) {
+			case KB_F3:
+			case KB_F4:
+				break;
+
+			case KB_F8:
+				goto end;
+			}
+
+			/*
+			if(keypress(c) == -1) {
+				draw = fsview_draw;
+				keypress = fsview_keypress;
+			}
+			*/
+		}
+
+		draw();
+	}
+
+end:
+	con_scr_enable();
+	set_vga_mode(3);
+	con_clear();
+	con_show_cursor(1);
+	return 0;
+}
+
+static int video_init(void)
 {
 	struct vbe_edid edid;
 	struct video_mode vinf, *vmodes;
@@ -105,37 +157,6 @@ int gfxui(void)
 	}
 	free(vmodes);
 
-	for(;;) {
-		int c;
-
-		halt_cpu();
-		while((c = kb_getkey()) >= 0) {
-			/* global overrides for all views */
-			switch(c) {
-			case KB_F3:
-			case KB_F4:
-				break;
-
-			case KB_F8:
-				goto end;
-			}
-
-			/*
-			if(keypress(c) == -1) {
-				draw = fsview_draw;
-				keypress = fsview_keypress;
-			}
-			*/
-		}
-
-		draw();
-	}
-
-end:
-	con_scr_enable();
-	set_vga_mode(3);
-	con_clear();
-	con_show_cursor(1);
 	return 0;
 }
 
