@@ -163,6 +163,8 @@ static int video_init(void)
 static void draw(void)
 {
 	memset(fbptr, 0x80, vmode.width * vmode.height * vmode.bpp / 8);
+
+	win.draw(&ggfx, &win);
 }
 
 static int modecmp(const void *a, const void *b)

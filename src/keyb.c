@@ -22,6 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "asmops.h"
 #include "kbregs.h"
 #include "kbscan.h"
+#include "power.h"
 #include "panic.h"
 
 #define delay7us() \

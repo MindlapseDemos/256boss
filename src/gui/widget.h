@@ -48,7 +48,7 @@ struct gui_widget {
 	struct widget *parent, *clist;
 	struct widget *next;
 
-
+	gui_draw_func draw;
 };
 
 int gui_window(struct gui_widget *w, int x, int y, int width, int height, const char *name, struct gui_widget *parent);

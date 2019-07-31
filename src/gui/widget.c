@@ -15,10 +15,31 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-
+#include <string.h>
 #include "widget.h"
+
+static void draw_window(struct gui_gfx *g, struct gui_widget *w);
 
 int gui_window(struct gui_widget *w, int x, int y, int width, int height, const char *name, struct gui_widget *parent)
 {
-	return -1;	/* TODO */
+	if(!(w->name = calloc(1, strlen(name) + 1))) {
+		return -1;
+	}
+	strcpy(w->name, name);
+
+	w->type = GUI_WINDOW;
+	w->state = GUI_VISIBLE | GUI_ACTIVE;
+	w->x = x;
+	w->y = y;
+	w->width = width;
+	w->height = height;
+
+	w->draw = draw_window;
+	return 0;
+}
+
+static void draw_window(struct gui_gfx *g, struct gui_widget *w)
+{
+	g->color = 0xff0000;
+	g->draw.rect(g, w->x, w->y, w->width, w->height);
 }
