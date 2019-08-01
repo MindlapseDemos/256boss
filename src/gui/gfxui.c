@@ -162,6 +162,7 @@ static int video_init(void)
 
 static void draw(void)
 {
+	wait_vsync();
 	memset(fbptr, 0x80, vmode.width * vmode.height * vmode.bpp / 8);
 
 	win.draw(&ggfx, &win);
