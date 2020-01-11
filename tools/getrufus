@@ -1,0 +1,8 @@
+#!/bin/sh
+# Rufus is a free software bootable USB creation tool for windows, written by
+# Pete Batard <pete@akeo.ie> and released under the GNU GPLv3.
+# Visit the project website https://rufus.ie or the github project page
+# https://github.com/pbatard/rufus for details and source code.
+
+url='https://github.com/pbatard/rufus/releases/download/v3.8/rufus-3.8.exe'
+wget -O rufus.exe $url
