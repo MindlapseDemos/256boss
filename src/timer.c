@@ -72,10 +72,10 @@ void init_timer(void)
 	/* calculate the reload count: round(osc / freq) */
 	int reload_count = DIV_ROUND(OSC_FREQ_HZ, TICK_FREQ_HZ);
 
-	/* set the mode to square wave for channel 0, both low
+	/* set the mode to rate for channel 0, both low
 	 * and high reload count bytes will follow...
 	 */
-	outb(CMD_CHAN0 | CMD_ACCESS_BOTH | CMD_OP_SQWAVE, PORT_CMD);
+	outb(CMD_CHAN0 | CMD_ACCESS_BOTH | CMD_OP_RATE, PORT_CMD);
 
 	/* write the low and high bytes of the reload count to the
 	 * port for channel 0
