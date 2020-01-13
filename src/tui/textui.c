@@ -353,9 +353,9 @@ static void draw_topbar(void)
 	memset16(vmem, CHAR_ATTR(' ', ATTR_TOPBAR), NCOLS);
 
 	if(*top_title) {
-		con_printf(0, 0, "256boss - %s", top_title);
+		con_printf(0, 0, "256boss v%s - %s", VER_STR, top_title);
 	} else {
-		con_printf(0, 0, "256boss");
+		con_printf(0, 0, "256boss v%s", VER_STR);
 	}
 
 	draw_clock();

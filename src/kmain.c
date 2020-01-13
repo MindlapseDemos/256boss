@@ -1,6 +1,6 @@
 /*
 256boss - bootable launcher for 256byte intros
-Copyright (C) 2018-2019  John Tsiombikas <nuclear@member.fsf.org>
+Copyright (C) 2018-2020  John Tsiombikas <nuclear@member.fsf.org>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -39,6 +39,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "kbregs.h"
 #include "shell.h"
 #include "ui/fsview.h"
+#include "tui/textui.h"
 
 #ifdef ENABLE_GDB_STUB
 #include "serial.h"
@@ -86,7 +87,8 @@ void kmain(void)
 
 #ifdef AUTOSTART_GUI
 	if(!kb_isdown(KB_F8)) {
-		splash_screen();
+		/*splash_screen();*/
+		textui();
 	}
 #endif
 
