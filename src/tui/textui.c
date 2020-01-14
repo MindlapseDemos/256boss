@@ -211,8 +211,6 @@ void txui_set_title(const char *title)
 
 static void fsview_draw(void)
 {
-	int x, y;
-
 	if(dirty & DIRTY_BG) {
 		memset16(vmem, CHAR_ATTR(G_CHECKER, ATTR_BG), NCOLS * NROWS);
 		dirty_start = 0;
