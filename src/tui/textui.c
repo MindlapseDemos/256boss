@@ -62,7 +62,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define COL_FSVIEW_EXEC_256	LTGREEN
 #define COL_FSVIEW_EXEC		LTRED
 
-#define COL_INFOBOX_BG		BLACK
+#define COL_INFOBOX_BG		RED
 #define COL_INFOBOX_FRM		YELLOW
 
 enum { OPEN_NOEXEC = 1 };
@@ -97,6 +97,7 @@ static int (*keypress)(int c);
 #define DIRTY_INFOBOX	0x08
 static int dirty_start = -1, dirty_end = -1;
 static unsigned int dirty;
+static int show_help;
 
 #define MAX_SEARCH_LEN	32
 static char search[MAX_SEARCH_LEN + 1];
@@ -214,9 +215,10 @@ static void fsview_draw(void)
 		memset16(vmem, CHAR_ATTR(G_CHECKER, ATTR_BG), NCOLS * NROWS);
 		dirty_start = 0;
 		dirty_end = INT_MAX;
+		dirty = DIRTY_ALL;
 	}
 
-	if(dirty & DIRTY_INFOBOX) {
+	if(show_help && (dirty & DIRTY_INFOBOX)) {
 		draw_infobox();
 	}
 
@@ -230,7 +232,7 @@ static void fsview_draw(void)
 	}
 	draw_clock();
 
-	dirty &= ~(DIRTY_STATUS | DIRTY_BG);
+	dirty &= ~(DIRTY_STATUS | DIRTY_BG | DIRTY_INFOBOX);
 }
 
 
@@ -318,6 +320,11 @@ static int fsview_keypress(int c)
 		cancel_search();
 		break;
 
+	case KB_F1:
+		show_help = ~show_help;
+		dirty |= DIRTY_INFOBOX | DIRTY_BG;
+		break;
+
 	default:
 		if(isprint(c)) {
 			if(search_len < MAX_SEARCH_LEN) {
@@ -399,36 +406,50 @@ static void draw_statusbar(void)
 	}
 }
 
+static const char *infotext[] = {
+	"Navigate with the arrow keys",
+	"Type to search interactively",
+	"Escape to cancel search",
+	"Enter to activate selection:",
+	"  - enter directories",
+	"  - execute com binaries",
+	"  - view other files",
+	"Backspace goes to parent dir",
+	"F5 to open selection in the",
+	"  text/hex viewer",
+	"TAB switches viewer between",
+	"  text and hex modes",
+	"F1 to toggle this help box",
+	"F8 to drop to a debug shell",
+	0
+};
+
 static void draw_infobox(void)
 {
 	int i, x, y, w, h, row, col, max_nlines, bglines;
-	struct fsview_dirent *item = 0;
 	uint16_t *rowptr, attr;
 
+	h = sizeof infotext / sizeof *infotext + 1;	/* +2 minus the 0 terminator */
+	y = FSVIEW_Y + (FSVIEW_ROWS - h) / 2;
 	x = FSVIEW_X + FSVIEW_COLS;
-	y = FSVIEW_Y;
 	w = NCOLS - x;
-	h = 0;
 
-	if(fsview.cursel >= 0 && fsview.cursel < fsview.num_entries) {
-		item = fsview.entries + fsview.cursel;
+	attr = ATTR(0, COL_INFOBOX_BG);
+
+	draw_frame("Info", x, y, w, h, 0, COL_INFOBOX_FRM, COL_INFOBOX_BG);
+
+	col = x + 1;
+	row = y + 1;
+	max_nlines = h - 2;
+	rowptr = vmem + row * NCOLS;
+
+	for(i=0; i<max_nlines; i++) {
+		memset16(rowptr + col, CHAR_ATTR(' ', attr), w - 2);
+		rowptr += NCOLS;
 	}
 
-	if(item && strcmp(item->name, "..") != 0) {
-		attr = ATTR(0, COL_INFOBOX_BG);
-		h = 10;
-
-		draw_frame(item->name, x, y, w, h, 0, COL_INFOBOX_FRM, COL_INFOBOX_BG);
-
-		col = x + 1;
-		row = y + 1;
-		max_nlines = h - 2;
-		rowptr = vmem + row * NCOLS;
-
-		for(i=0; i<max_nlines; i++) {
-			memset16(rowptr + col, CHAR_ATTR(' ', attr), w - 2);
-			rowptr += NCOLS;
-		}
+	for(i=0; infotext[i]; i++) {
+		con_printf(col, row++, infotext[i]);
 	}
 
 	bglines = FSVIEW_ROWS - h;

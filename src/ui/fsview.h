@@ -18,9 +18,14 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef FSVIEW_H_
 #define FSVIEW_H_
 
+enum {
+	FTYPE_UNK,
+	FTYPE_EXEC
+};
+
 struct fsview_dirent {
 	char *name;
-	int type;
+	int type, ftype;
 	unsigned long size;
 };
 

@@ -1,6 +1,6 @@
 /*
 256boss - bootable launcher for 256byte intros
-Copyright (C) 2018-2019  John Tsiombikas <nuclear@member.fsf.org>
+Copyright (C) 2018-2020  John Tsiombikas <nuclear@member.fsf.org>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -22,8 +22,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <dirent.h>
 #include "fsview.h"
 #include "panic.h"
+#include "util.h"
 
 static int load_cur_dir(struct fsview *fsv);
+static int ftdetect(struct fsview_dirent *item);
 
 
 struct fsview *fsv_alloc(void)
@@ -252,12 +254,14 @@ static int load_cur_dir(struct fsview *fsv)
 			fsv->dirs->name = name;
 			fsv->dirs->type = DT_DIR;
 			fsv->dirs->size = 0;
+			fsv->dirs->ftype = 0;
 			fsv->dirs++;
 			fsv->num_dirs++;
 		} else {
 			fsv->files->name = name;
 			fsv->files->type = DT_REG;
 			fsv->files->size = dent->d_fsize;
+			fsv->files->ftype = ftdetect(fsv->files);
 			fsv->files++;
 			fsv->num_files++;
 		}
@@ -273,4 +277,12 @@ static int load_cur_dir(struct fsview *fsv)
 	fsv->cursel = 0;
 	fsv->scroll = 0;
 	return 0;
+}
+
+static int ftdetect(struct fsview_dirent *item)
+{
+	if(has_suffix(item->name, ".com")) {
+		return FTYPE_EXEC;
+	}
+	return FTYPE_UNK;
 }
