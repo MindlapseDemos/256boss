@@ -63,7 +63,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define COL_FSVIEW_EXEC		LTRED
 
 #define COL_INFOBOX_BG		RED
-#define COL_INFOBOX_FRM		YELLOW
+#define COL_INFOBOX_FRM		WHITE
 
 enum { OPEN_NOEXEC = 1 };
 
@@ -97,7 +97,7 @@ static int (*keypress)(int c);
 #define DIRTY_INFOBOX	0x08
 static int dirty_start = -1, dirty_end = -1;
 static unsigned int dirty;
-static int show_help;
+static int show_help = 1;
 
 #define MAX_SEARCH_LEN	32
 static char search[MAX_SEARCH_LEN + 1];
@@ -211,6 +211,8 @@ void txui_set_title(const char *title)
 
 static void fsview_draw(void)
 {
+	int x, y;
+
 	if(dirty & DIRTY_BG) {
 		memset16(vmem, CHAR_ATTR(G_CHECKER, ATTR_BG), NCOLS * NROWS);
 		dirty_start = 0;
@@ -406,7 +408,23 @@ static void draw_statusbar(void)
 	}
 }
 
+
+/*
+x = FSVIEW_X + FSVIEW_COLS + 1;
+y = FSVIEW_Y + 1;
+con_printf(x, y++, "256boss v%s", VER_STR);
+con_printf(x, y++, "by Nuclear / Mindlapse");
+y++;
+con_printf(x, y++, "https://github.com/");
+con_printf(x, y++, "  MindlapseDemos/256boss");
+*/
+
 static const char *infotext[] = {
+	"256boss v" VER_STR,
+	"by Nuclear / Mindlapse",
+	"https://github.com/",
+	"  MindlapseDemos/256boss",
+	" ",
 	"Navigate with the arrow keys",
 	"Type to search interactively",
 	"Escape to cancel search",
@@ -419,7 +437,6 @@ static const char *infotext[] = {
 	"  text/hex viewer",
 	"TAB switches viewer between",
 	"  text and hex modes",
-	"F1 to toggle this help box",
 	"F8 to drop to a debug shell",
 	0
 };
@@ -436,7 +453,7 @@ static void draw_infobox(void)
 
 	attr = ATTR(0, COL_INFOBOX_BG);
 
-	draw_frame("Info", x, y, w, h, 0, COL_INFOBOX_FRM, COL_INFOBOX_BG);
+	draw_frame("Info - F1 to toggle", x, y, w, h, 0, COL_INFOBOX_FRM, COL_INFOBOX_BG);
 
 	col = x + 1;
 	row = y + 1;
