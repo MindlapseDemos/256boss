@@ -62,6 +62,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define COL_FSVIEW_EXEC_256	LTGREEN
 #define COL_FSVIEW_EXEC		LTRED
 
+#define COL_INFOBOX_BG		BLACK
+#define COL_INFOBOX_FRM		YELLOW
+
 enum { OPEN_NOEXEC = 1 };
 
 static void init_scr(void);
@@ -71,10 +74,12 @@ static int openfile(const char *path, unsigned int oflags);
 static void draw_topbar(void);
 static void draw_clock(void);
 static void draw_statusbar(void);
+static void draw_infobox(void);
 static void draw_dirview(int x, int y, int w, int h, int first, int last);
 
 static void fill_rect(int x, int y, int w, int h, uint16_t c);
-static void draw_frame(const char *title, int x, int y, int w, int h, unsigned char fg, unsigned char bg);
+static void draw_frame(const char *title, int x, int y, int w, int h, int colwidth,
+		unsigned char fg, unsigned char bg);
 static void invalidate(int idx);
 
 static void cancel_search(void);
@@ -89,6 +94,7 @@ static int (*keypress)(int c);
 #define DIRTY_BG		0x01
 #define DIRTY_TITLE		0x02
 #define DIRTY_STATUS	0x04
+#define DIRTY_INFOBOX	0x08
 static int dirty_start = -1, dirty_end = -1;
 static unsigned int dirty;
 
@@ -208,6 +214,10 @@ static void fsview_draw(void)
 		memset16(vmem, CHAR_ATTR(G_CHECKER, ATTR_BG), NCOLS * NROWS);
 		dirty_start = 0;
 		dirty_end = INT_MAX;
+	}
+
+	if(dirty & DIRTY_INFOBOX) {
+		draw_infobox();
 	}
 
 	if(dirty_start != -1) {
@@ -389,6 +399,48 @@ static void draw_statusbar(void)
 	}
 }
 
+static void draw_infobox(void)
+{
+	int i, x, y, w, h, row, col, max_nlines, bglines;
+	struct fsview_dirent *item = 0;
+	uint16_t *rowptr, attr;
+
+	x = FSVIEW_X + FSVIEW_COLS;
+	y = FSVIEW_Y;
+	w = NCOLS - x;
+	h = 0;
+
+	if(fsview.cursel >= 0 && fsview.cursel < fsview.num_entries) {
+		item = fsview.entries + fsview.cursel;
+	}
+
+	if(item && strcmp(item->name, "..") != 0) {
+		attr = ATTR(0, COL_INFOBOX_BG);
+		h = 10;
+
+		draw_frame(item->name, x, y, w, h, 0, COL_INFOBOX_FRM, COL_INFOBOX_BG);
+
+		col = x + 1;
+		row = y + 1;
+		max_nlines = h - 2;
+		rowptr = vmem + row * NCOLS;
+
+		for(i=0; i<max_nlines; i++) {
+			memset16(rowptr + col, CHAR_ATTR(' ', attr), w - 2);
+			rowptr += NCOLS;
+		}
+	}
+
+	bglines = FSVIEW_ROWS - h;
+	col = x;
+	row = y + h;
+	rowptr = vmem + row * NCOLS;
+	for(i=0; i<bglines; i++) {
+		memset16(rowptr + col, CHAR_ATTR(G_CHECKER, ATTR_BG), w);
+		rowptr += NCOLS;
+	}
+}
+
 static void draw_dirview(int x, int y, int w, int h, int first, int last)
 {
 	int i, nlines, max_nlines, row, col;
@@ -410,7 +462,7 @@ static void draw_dirview(int x, int y, int w, int h, int first, int last)
 		last = INT_MAX;
 
 		fill_rect(x, y, w, h, CHAR_COL(' ', COL_FSVIEW_FILE, COL_FSVIEW_BG));
-		draw_frame(getcwd(buf, PATH_MAX), x, y, w, h, COL_FSVIEW_FRM, COL_FSVIEW_BG);
+		draw_frame(getcwd(buf, PATH_MAX), x, y, w, h, namecol_len - 1, COL_FSVIEW_FRM, COL_FSVIEW_BG);
 	}
 
 	nlines = fsview.num_entries - fsview.scroll;
@@ -478,7 +530,8 @@ static void fill_rect(int x, int y, int w, int h, uint16_t c)
 	}
 }
 
-static void draw_frame(const char *title, int x, int y, int w, int h, unsigned char fg, unsigned char bg)
+static void draw_frame(const char *title, int x, int y, int w, int h, int colwidth,
+		unsigned char fg, unsigned char bg)
 {
 	int i, tlen, maxtlen;
 	char tbuf[80];
@@ -504,7 +557,9 @@ static void draw_frame(const char *title, int x, int y, int w, int h, unsigned c
 	ptr[0] = CHAR_ATTR(G_UL_HDBL, attr);
 	con_printf(x + 1, y, " %s ", title);
 	memset16(ptr + tlen + 3, CHAR_ATTR(G_HDBL, attr), w - tlen - 4);
-	ptr[w - SIZECOL_LEN - 2] = CHAR_ATTR(G_T_HDBL_TEE, attr);
+	if(colwidth > 0) {
+		ptr[colwidth + 1] = CHAR_ATTR(G_T_HDBL_TEE, attr);
+	}
 	ptr[w - 1] = CHAR_ATTR(G_UR_HDBL, attr);
 
 	ptr += NCOLS;
@@ -518,7 +573,9 @@ static void draw_frame(const char *title, int x, int y, int w, int h, unsigned c
 	ptr[0] = CHAR_ATTR(G_LL_CORNER, attr);
 	ptr[w - 1] = CHAR_ATTR(G_LR_CORNER, attr);
 	memset16(ptr + 1, CHAR_ATTR(G_HLINE, attr), w - 2);
-	ptr[w - SIZECOL_LEN - 2] = CHAR_ATTR(G_B_TEE, attr);
+	if(colwidth > 0) {
+		ptr[colwidth + 1] = CHAR_ATTR(G_B_TEE, attr);
+	}
 }
 
 static void invalidate(int idx)
