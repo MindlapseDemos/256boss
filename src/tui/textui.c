@@ -321,7 +321,7 @@ static int fsview_keypress(int c)
 		break;
 
 	case KB_F1:
-		show_help = ~show_help;
+		show_help = !show_help;
 		dirty |= DIRTY_INFOBOX | DIRTY_BG;
 		break;
 
