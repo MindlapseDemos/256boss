@@ -62,8 +62,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define COL_FSVIEW_EXEC_256	LTGREEN
 #define COL_FSVIEW_EXEC		LTRED
 
-#define COL_INFOBOX_BG		RED
-#define COL_INFOBOX_FRM		WHITE
+#define COL_INFOBOX_BG		BLUE
+#define COL_INFOBOX_FRM		LTGREY
+#define COL_INFOBOX_TEXT	COL_INFOBOX_FRM
 
 enum { OPEN_NOEXEC = 1 };
 
@@ -223,7 +224,8 @@ static void fsview_draw(void)
 	}
 
 	if(dirty_start != -1) {
-		draw_dirview(FSVIEW_X, FSVIEW_Y, FSVIEW_COLS, FSVIEW_ROWS, dirty_start, dirty_end);
+		int width = show_help ? FSVIEW_COLS : NCOLS;
+		draw_dirview(FSVIEW_X, FSVIEW_Y, width, FSVIEW_ROWS, dirty_start, dirty_end);
 		dirty_start = dirty_end = -1;
 	}
 
@@ -406,36 +408,25 @@ static void draw_statusbar(void)
 	}
 }
 
-
-/*
-x = FSVIEW_X + FSVIEW_COLS + 1;
-y = FSVIEW_Y + 1;
-con_printf(x, y++, "256boss v%s", VER_STR);
-con_printf(x, y++, "by Nuclear / Mindlapse");
-y++;
-con_printf(x, y++, "https://github.com/");
-con_printf(x, y++, "  MindlapseDemos/256boss");
-*/
-
 static const char *infotext[] = {
-	"256boss v" VER_STR,
-	"by Nuclear / Mindlapse",
+	"       *256boss* v" VER_STR,
+	"by *Nuclear* / *Mindlapse*",
 	"https://github.com/",
 	"  MindlapseDemos/256boss",
 	" ",
-	"Navigate with the arrow keys",
+	"Navigate with the *arrow keys*",
 	"Type to search interactively",
-	"Escape to cancel search",
-	"Enter to activate selection:",
-	"  - enter directories",
-	"  - execute com binaries",
-	"  - view other files",
-	"Backspace goes to parent dir",
-	"F5 to open selection in the",
+	"*Escape* to cancel search",
+	"*Enter* to activate selection:",
+	"  *-* enter directories",
+	"  *-* execute com binaries",
+	"  *-* view other files",
+	"*Backspace* goes to parent dir",
+	"*F5* to open selection in the",
 	"  text/hex viewer",
-	"TAB switches viewer between",
+	"*TAB* switches viewer between",
 	"  text and hex modes",
-	"F8 to drop to a debug shell",
+	"*F8* to drop to a debug shell",
 	0
 };
 
@@ -449,9 +440,9 @@ static void draw_infobox(void)
 	x = FSVIEW_X + FSVIEW_COLS;
 	w = NCOLS - x;
 
-	attr = ATTR(0, COL_INFOBOX_BG);
+	draw_frame("Info - F1 to toggle", x, y, w, h, 0, COL_INFOBOX_FRM | FG_BRIGHT, COL_INFOBOX_BG);
 
-	draw_frame("Info - F1 to toggle", x, y, w, h, 0, COL_INFOBOX_FRM, COL_INFOBOX_BG);
+	attr = ATTR(COL_INFOBOX_TEXT, COL_INFOBOX_BG);
 
 	col = x + 1;
 	row = y + 1;
@@ -464,7 +455,19 @@ static void draw_infobox(void)
 	}
 
 	for(i=0; infotext[i]; i++) {
-		con_printf(col, row++, infotext[i]);
+		const char *ptr = infotext[i];
+		col = x + 1;
+		while(*ptr) {
+			int c = *ptr++;
+			if(c == '*') {
+				attr ^= FG_BRIGHT;
+				con_setattr(attr);
+			} else {
+				con_putchar_scr(col++, row, c);
+			}
+		}
+		row++;
+		/*con_printf(col, row++, infotext[i]);*/
 	}
 
 	bglines = FSVIEW_ROWS - h;
