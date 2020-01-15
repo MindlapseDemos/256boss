@@ -87,8 +87,7 @@ void kmain(void)
 
 #ifdef AUTOSTART_GUI
 	if(!kb_isdown(KB_F8)) {
-		/*splash_screen();*/
-		textui();
+		splash_screen();
 	}
 #endif
 
