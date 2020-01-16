@@ -147,7 +147,7 @@ static void setup_video(void)
 
 static void draw(void)
 {
-	unsigned long msec = MSEC_TO_TICKS(nticks - start_ticks);
+	unsigned long msec = TICKS_TO_MSEC(nticks - start_ticks);
 
 	draw_tunnel(msec);
 
@@ -155,7 +155,16 @@ static void draw(void)
 	memcpy(vmem, fb, 64000);
 }
 
-#define EASEIN_END	1000
+static float smoothstep(float a, float b, float x)
+{
+	if(x < a) return 0.0f;
+	if(x >= b) return 1.0f;
+
+	x = (x - a) / (b - a);
+	return x * x * (3.0f - 2.0f * x);
+}
+
+#define EASEIN_END	2000
 static void draw_tunnel(unsigned long msec)
 {
 	int i, j, tx, ty, xoffs, yoffs;
@@ -165,9 +174,7 @@ static void draw_tunnel(unsigned long msec)
 
 	if(msec < EASEIN_END) {
 		float x;
-		x = ((float)M_PI / 2.0f) * ((float)msec / (float)EASEIN_END);
-		//printf("ms:%lu, x=%ld\n", msec, (long)(x * 1000.0f));
-		x = sin(x);
+		x = smoothstep(0.0f, EASEIN_END, (float)msec);
 		t = x * x * (float)EASEIN_END;
 		msec = (unsigned long)t;
 		t /= 1000.0f;
@@ -189,8 +196,8 @@ static void draw_tunnel(unsigned long msec)
 				tx = ((int)tun->x * FX_TEX_SIZE) >> 10;
 				ty = ((int)tun->y * FX_TEX_SIZE) >> 12;
 
-				tx = (tx + msec * 4) >> 3;
-				ty = (ty + msec * 16) >> 3;
+				tx = (tx + msec / 2) >> 3;
+				ty = (ty + msec) >> 3;
 
 				tx &= FX_TEX_SIZE - 1;
 				ty &= FX_TEX_SIZE - 1;
