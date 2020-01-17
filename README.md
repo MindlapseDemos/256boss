@@ -29,12 +29,12 @@ demoparty. Just create a FAT filesystem on the USB stick, copy every 256byte
 intro you want onto it, and install 256boss on that USB stick by following our
 simple installation instructions for each platform.
 
-Project website: TODO
+Project website: http://nuclear.mutantstargoat.com/sw/256boss 
 Source code repository: https://github.com/MindlapseDemos/256boss
 
 License
 -------
-Copyright (C) 2019 John Tsiombikas <nuclear@member.fsf.org>
+Copyright (C) 2019-2020 John Tsiombikas <nuclear@member.fsf.org>
 
 This program is free software, feel free to use, modify and/or redistribute it
 under the terms of the GNU General Public License version 3, or at your option
@@ -47,7 +47,14 @@ TODO
 
 Setup instructions
 ------------------
-TODO
+The 256boss release comes with a pre-generated bootable disk image, ready to be
+written onto a USB stick (if you got the source code from github instead of an
+"official" release, follow the build instructions in the next section first).
+This image contains both the boot loader and operating system itself, as well as
+a small FAT partition where you can write your 256byte intros to access them
+when you boot 256boss.
+
+TODO cont.
 
 Build instructions
 ------------------
