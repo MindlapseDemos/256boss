@@ -42,12 +42,17 @@ static unsigned char *fb;
 static unsigned char *vmem = (unsigned char*)0xa0000;
 static struct image img_ui, img_tex;
 static unsigned long start_ticks;
+static struct cmapent tunpal[256];
+
+#define TUN_DUR				12000
+#define TUN_FADEOUT_START	10000
+#define TUN_FADEOUT_DUR		(TUN_DUR - TUN_FADEOUT_START)
 
 
 #define HEADER_HEIGHT	17
 #define FX_HEIGHT		(200 - HEADER_HEIGHT)
 #define FX_TEX_SIZE		128
-#define FX_TEX_PITCH	FX_TEX_SIZE
+#define FX_TEX_PITCH	(FX_TEX_SIZE << 2)
 
 #define FX_PAL_OFFS		64
 #define FX_PAL_SIZE		32
@@ -93,6 +98,7 @@ void splash_screen(void)
 		goto end;
 	}
 	image_color_offset(&img_tex, FX_PAL_OFFS);
+	img_tex.width = img_tex.height;
 
 	while(kb_getkey() >= 0);	/* empty any input queues */
 
@@ -130,6 +136,9 @@ static void setup_video(void)
 	col = img_ui.cmap;
 	for(i=0; i<img_ui.cmap_ncolors; i++) {
 		set_pal_entry(i, col->r, col->g, col->b);
+		tunpal[i].r = col->r;
+		tunpal[i].g = col->g;
+		tunpal[i].b = col->b;
 		col++;
 	}
 
@@ -139,7 +148,11 @@ static void setup_video(void)
 			int r = (int)col->r * (FX_FOG_LEVELS - j) / FX_FOG_LEVELS;
 			int g = (int)col->g * (FX_FOG_LEVELS - j) / FX_FOG_LEVELS;
 			int b = (int)col->b * (FX_FOG_LEVELS - j) / FX_FOG_LEVELS;
-			set_pal_entry(i + FX_PAL_OFFS + FX_PAL_SIZE * j, r, g, b);
+			int idx = i + FX_PAL_OFFS + FX_PAL_SIZE * j;
+			set_pal_entry(idx, r, g, b);
+			tunpal[idx].r = r;
+			tunpal[idx].g = g;
+			tunpal[idx].b = b;
 		}
 		col++;
 	}
@@ -149,40 +162,72 @@ static void draw(void)
 {
 	unsigned long msec = TICKS_TO_MSEC(nticks - start_ticks);
 
-	draw_tunnel(msec);
+	if(msec < TUN_DUR) {
+		draw_tunnel(msec);
+	}
 
 	wait_vsync();
 	memcpy(vmem, fb, 64000);
 }
 
-static float smoothstep(float a, float b, float x)
-{
-	if(x < a) return 0.0f;
-	if(x >= b) return 1.0f;
 
-	x = (x - a) / (b - a);
-	return x * x * (3.0f - 2.0f * x);
+static float bezier(float a, float b, float c, float d, float t)
+{
+	float omt, omt3, t3, f;
+	t3 = t * t * t;
+	omt = 1.0f - t;
+	omt3 = omt * omt * omt;
+	f = 3.0f * t * omt;
+
+	return (a * omt3) + (b * f * omt) + (c * f * t) + (d * t3);
 }
 
-#define EASEIN_END	2000
+
+#define FADEIN_DUR	3000
+#define EASEIN_START	2000
+#define EASEIN_DUR	2000
+#define TUN_FLASH_R	221
+#define TUN_FLASH_G	234
+#define TUN_FLASH_B	239
 static void draw_tunnel(unsigned long msec)
 {
 	int i, j, tx, ty, xoffs, yoffs;
 	struct tunnel *tun;
 	unsigned char *pptr;
-	float t;
+	float shake, t;
+	int blursel, bluroffs;
+	unsigned long anmt;
 
-	if(msec < EASEIN_END) {
-		float x;
-		x = smoothstep(0.0f, EASEIN_END, (float)msec);
-		t = x * x * (float)EASEIN_END;
-		msec = (unsigned long)t;
-		t /= 1000.0f;
-	} else {
-		t = (float)msec / 1000.0f;
+	if(msec < FADEIN_DUR) {
+		for(i=FX_PAL_OFFS; i<256; i++) {
+			int r = tunpal[i].r * msec / FADEIN_DUR;
+			int g = tunpal[i].g * msec / FADEIN_DUR;
+			int b = tunpal[i].b * msec / FADEIN_DUR;
+			set_pal_entry(i, r, g, b);
+		}
+	} else if(msec >= TUN_FADEOUT_START && msec < TUN_FADEOUT_START + TUN_FADEOUT_DUR) {
+		for(i=0; i<256; i++) {
+			unsigned long tm = msec - TUN_FADEOUT_START;
+			int r = tunpal[i].r + (TUN_FLASH_R - tunpal[i].r) * tm / TUN_FADEOUT_DUR;
+			int g = tunpal[i].g + (TUN_FLASH_G - tunpal[i].g) * tm / TUN_FADEOUT_DUR;
+			int b = tunpal[i].b + (TUN_FLASH_B - tunpal[i].b) * tm / TUN_FADEOUT_DUR;
+			set_pal_entry(i, r, g, b);
+		}
 	}
-	xoffs = (int)(/*cos(t * 3.0)*/0 * (TUN_PAN_XSZ / 2) + (TUN_PAN_XSZ / 2));
-	yoffs = (int)(/*sin(t * 4.0)*/0 * (TUN_PAN_YSZ / 2) + (TUN_PAN_YSZ / 2));
+
+	//speed = (float)msec / 1000.0f;
+	anmt = msec * msec / 3000;
+
+	blursel = (msec - 500) / 1800;
+	if(blursel < 0) blursel = 0;
+	if(blursel > 3) blursel = 3;
+	bluroffs = blursel * FX_TEX_SIZE;
+
+	t = (float)msec / 1000.0f;
+	shake = (t - 2) * 0.08;
+	if(shake < 0.0f) shake = 0.0f;
+	xoffs = (int)(cos(t * 3.0) * shake * (TUN_PAN_XSZ / 2) + (TUN_PAN_XSZ / 2));
+	yoffs = (int)(sin(t * 4.0) * shake * (TUN_PAN_YSZ / 2) + (TUN_PAN_YSZ / 2));
 
 	memcpy(fb, img_ui.pixels, HEADER_HEIGHT * 320);
 
@@ -196,12 +241,14 @@ static void draw_tunnel(unsigned long msec)
 				tx = ((int)tun->x * FX_TEX_SIZE) >> 10;
 				ty = ((int)tun->y * FX_TEX_SIZE) >> 12;
 
-				tx = (tx + msec / 2) >> 3;
-				ty = (ty + msec) >> 3;
+				//tx = (tx + anmt / 2) >> 3;
+				tx >>= 3;
+				ty = (ty + anmt) >> 3;
 
 				tx &= FX_TEX_SIZE - 1;
 				ty &= FX_TEX_SIZE - 1;
-				*pptr++ = img_tex.pixels[ty * FX_TEX_PITCH + tx] + tun->fog * FX_PAL_SIZE;
+
+				*pptr++ = img_tex.pixels[bluroffs + ty * FX_TEX_PITCH + tx] + tun->fog * FX_PAL_SIZE;
 			}
 			tun++;
 		}
