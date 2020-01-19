@@ -33,7 +33,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "datapath.h"
 
 static void setup_video(void);
-static void draw(void);
+static void draw(unsigned long msec);
 static void draw_tunnel(unsigned long msec);
 static int precalc_tunnel(void);
 
@@ -44,9 +44,9 @@ static struct image img_ui, img_tex;
 static unsigned long start_ticks;
 static struct cmapent tunpal[256];
 
-#define TUN_DUR				12000
 #define TUN_FADEOUT_START	10000
-#define TUN_FADEOUT_DUR		(TUN_DUR - TUN_FADEOUT_START)
+#define TUN_FADEOUT_DUR		500
+#define TUN_DUR				(TUN_FADEOUT_START + TUN_FADEOUT_DUR + 1000)
 
 
 #define HEADER_HEIGHT	17
@@ -73,6 +73,8 @@ struct tunnel {
 
 void splash_screen(void)
 {
+	unsigned long msec;
+
 	if(init_datapath() == -1) {
 		printf("splash_screen: failed to locate the data dir\n");
 	}
@@ -104,13 +106,16 @@ void splash_screen(void)
 
 	setup_video();
 	start_ticks = nticks;
+	msec = 0;
 
-	for(;;) {
+	while(msec < TUN_DUR) {
 		halt_cpu();
 		if(kb_getkey() >= 0) {
 			break;
 		}
-		draw();
+
+		msec = TICKS_TO_MSEC(nticks - start_ticks);
+		draw(msec);
 	}
 
 end:
@@ -158,10 +163,8 @@ static void setup_video(void)
 	}
 }
 
-static void draw(void)
+static void draw(unsigned long msec)
 {
-	unsigned long msec = TICKS_TO_MSEC(nticks - start_ticks);
-
 	if(msec < TUN_DUR) {
 		draw_tunnel(msec);
 	}
@@ -207,15 +210,14 @@ static void draw_tunnel(unsigned long msec)
 		}
 	} else if(msec >= TUN_FADEOUT_START && msec < TUN_FADEOUT_START + TUN_FADEOUT_DUR) {
 		for(i=0; i<256; i++) {
-			unsigned long tm = msec - TUN_FADEOUT_START;
-			int r = tunpal[i].r + (TUN_FLASH_R - tunpal[i].r) * tm / TUN_FADEOUT_DUR;
-			int g = tunpal[i].g + (TUN_FLASH_G - tunpal[i].g) * tm / TUN_FADEOUT_DUR;
-			int b = tunpal[i].b + (TUN_FLASH_B - tunpal[i].b) * tm / TUN_FADEOUT_DUR;
+			int tm = msec - TUN_FADEOUT_START;
+			int r = (int)tunpal[i].r + (TUN_FLASH_R - (int)tunpal[i].r) * tm / TUN_FADEOUT_DUR;
+			int g = (int)tunpal[i].g + (TUN_FLASH_G - (int)tunpal[i].g) * tm / TUN_FADEOUT_DUR;
+			int b = (int)tunpal[i].b + (TUN_FLASH_B - (int)tunpal[i].b) * tm / TUN_FADEOUT_DUR;
 			set_pal_entry(i, r, g, b);
 		}
 	}
 
-	//speed = (float)msec / 1000.0f;
 	anmt = msec * msec / 3000;
 
 	blursel = (msec - 500) / 1800;
