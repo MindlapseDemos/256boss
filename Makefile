@@ -1,6 +1,7 @@
 version = 0.1
 
 csrc = $(wildcard src/*.c) \
+	   $(wildcard src/splash/*.c) \
 	   $(wildcard src/libc/*.c) \
 	   $(wildcard src/tui/*.c) \
 	   $(wildcard src/gui/*.c) \

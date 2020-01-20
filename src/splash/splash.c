@@ -31,6 +31,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "tui/textui.h"
 #include "gui/gfxui.h"
 #include "datapath.h"
+#include "data.h"
+#include "psys.h"
 
 static void setup_video(void);
 static void draw(unsigned long msec);
@@ -70,6 +72,8 @@ struct tunnel {
 	unsigned char fog;
 } *tunlut;
 
+static struct emitter psys;
+
 
 void splash_screen(void)
 {
@@ -102,6 +106,8 @@ void splash_screen(void)
 	image_color_offset(&img_tex, FX_PAL_OFFS);
 	img_tex.width = img_tex.height;
 
+	create_emitter(&psys, 1024);
+
 	while(kb_getkey() >= 0);	/* empty any input queues */
 
 	setup_video();
@@ -123,6 +129,7 @@ end:
 	con_scr_enable();
 	set_vga_mode(3);
 
+	destroy_emitter(&psys);
 	free(fb);
 	free(tunlut);
 	free(img_ui.pixels);
@@ -166,8 +173,10 @@ static void setup_video(void)
 static void draw(unsigned long msec)
 {
 	if(msec < TUN_DUR) {
-		draw_tunnel(msec);
+		//draw_tunnel(msec);
 	}
+
+	draw_psys(&psys);
 
 	wait_vsync();
 	memcpy(vmem, fb, 64000);
@@ -291,4 +300,20 @@ static int precalc_tunnel(void)
 	}
 
 	return 0;
+}
+
+void draw_psys(struct emitter *psys)
+{
+	int i;
+	struct particle *p;
+
+	p = psys->plist;
+	for(i=0; i<psys->pmax; i++) {
+		int x = p->x;
+		int y = p->y;
+		if(p->life > 0 && x >= 0 && y >= 0 && x < 320 && y < 200) {
+			vmem[y * 320 + x] = 0xff;
+		}
+		p++;
+	}
 }
