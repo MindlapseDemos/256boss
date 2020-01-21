@@ -24,8 +24,15 @@ void update_psys(struct emitter *ps, long msec)
 {
 	int i;
 	struct particle *p;
-	long dtms = msec - ps->prev_upd;
-	float dt = (float)dtms / 1000.0f;
+	long dtms;
+	float dt;
+
+	if(ps->prev_upd <= 0) {
+		ps->prev_upd = msec;
+		return;
+	}
+	dtms = msec - ps->prev_upd;
+	dt = (float)dtms / 1000.0f;
 	ps->prev_upd = msec;
 
 	ps->spawn_acc += dtms << 8;
@@ -41,8 +48,11 @@ void update_psys(struct emitter *ps, long msec)
 		if(p) {
 			p->x = ps->x;
 			p->y = ps->y;
+			/*
 			p->vx = (float)rand() / (float)RAND_MAX;
 			p->vy = (float)rand() / (float)RAND_MAX;
+			*/
+			p->vx = p->vy = 0;
 			p->life = ps->plife;
 			p->col = ps->pcol_start;
 		}
@@ -50,16 +60,20 @@ void update_psys(struct emitter *ps, long msec)
 		ps->spawn_acc -= ps->spawn_rate;
 	}
 
-	ps->fy = -9;
+	ps->fy = 9;
 
 	p = ps->plist;
 	for(i=0; i<ps->pmax; i++) {
-		if(p->life > 0) p->life -= dtms;
 		if(p->life > 0) {
-			p->x += p->vx * dt;
-			p->y += p->vy * dt;
-			p->vx = p->vx * 0.9999 + ps->fx * dt;
-			p->vy = p->vy * 0.9999 + ps->fy * dt;
+			p->life -= dtms;
+			if(p->life > 0) {
+				p->x += p->vx * dt;
+				p->y += p->vy * dt;
+				p->vx = p->vx * 0.9999 + ps->fx * dt;
+				p->vy = p->vy * 0.9999 + ps->fy * dt;
+			} else {
+				p->life = 0;
+			}
 		}
 	}
 

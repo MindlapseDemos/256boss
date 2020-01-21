@@ -37,6 +37,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 static void setup_video(void);
 static void draw(unsigned long msec);
 static void draw_tunnel(unsigned long msec);
+static void draw_psys(struct emitter *psys, unsigned long msec);
 static int precalc_tunnel(void);
 
 
@@ -107,6 +108,8 @@ void splash_screen(void)
 	img_tex.width = img_tex.height;
 
 	create_emitter(&psys, 1024);
+	psys.x = 160;
+	psys.y = 100;
 
 	while(kb_getkey() >= 0);	/* empty any input queues */
 
@@ -168,6 +171,9 @@ static void setup_video(void)
 		}
 		col++;
 	}
+
+	//XXX
+	set_pal_entry(255, 255, 255, 255);
 }
 
 static void draw(unsigned long msec)
@@ -176,24 +182,12 @@ static void draw(unsigned long msec)
 		//draw_tunnel(msec);
 	}
 
-	draw_psys(&psys);
+	update_psys(&psys, msec);
+	draw_psys(&psys, msec);
 
 	wait_vsync();
 	memcpy(vmem, fb, 64000);
 }
-
-
-static float bezier(float a, float b, float c, float d, float t)
-{
-	float omt, omt3, t3, f;
-	t3 = t * t * t;
-	omt = 1.0f - t;
-	omt3 = omt * omt * omt;
-	f = 3.0f * t * omt;
-
-	return (a * omt3) + (b * f * omt) + (c * f * t) + (d * t3);
-}
-
 
 #define FADEIN_DUR	3000
 #define EASEIN_START	2000
@@ -302,17 +296,22 @@ static int precalc_tunnel(void)
 	return 0;
 }
 
-void draw_psys(struct emitter *psys)
+static void draw_psys(struct emitter *psys, unsigned long msec)
 {
 	int i;
 	struct particle *p;
 
+	memset(fb, 0, 64000);
+
 	p = psys->plist;
 	for(i=0; i<psys->pmax; i++) {
-		int x = p->x;
-		int y = p->y;
-		if(p->life > 0 && x >= 0 && y >= 0 && x < 320 && y < 200) {
-			vmem[y * 320 + x] = 0xff;
+		if(p->life > 0) {
+			int x = p->x;
+			int y = p->y;
+			printf("p(%ld) %d %d\n", p->life, (int)p->x, (int)p->y);
+			if(x >= 0 && y >= 0 && x < 320 && y < 200) {
+				fb[y * 320 + x] = 0xff;
+			}
 		}
 		p++;
 	}
