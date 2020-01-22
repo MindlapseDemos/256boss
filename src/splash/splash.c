@@ -108,7 +108,7 @@ void splash_screen(void)
 	img_tex.width = img_tex.height;
 
 	create_emitter(&psys, 8192);
-	psys.spawn_rate = SPAWN_PER_SEC(3000, 0);
+	psys.spawn_rate = SPAWN_PER_SEC(500, 0);
 	psys.plife = 1300;
 	psys.damping = 1.0;
 	psys.grav_y = -20;
@@ -117,8 +117,8 @@ void splash_screen(void)
 	psys.x_range = 5;
 	psys.y_range = 5;
 	psys.plife_range = 800;
-	psys.pcol_start = 255;
-	psys.pcol_end = 192;
+	psys.pcol_start = 63;
+	psys.pcol_end = 0;
 	psys.curve_cv = (float*)curve_256;
 	psys.curve_num_cv = sizeof curve_256 / sizeof *curve_256;
 	psys.curve_scale_x = 40.0f;
@@ -188,7 +188,7 @@ static void setup_video(void)
 	//XXX palette for the particle effect
 	for(i=0; i<64; i++) {
 		int idx = 63 - i;
-		set_pal_entry(i + 192, firepal[idx][0], firepal[idx][1], firepal[idx][2]);
+		set_pal_entry(i, firepal[idx][0], firepal[idx][1], firepal[idx][2]);
 	}
 }
 
@@ -334,12 +334,23 @@ static void draw_psys(struct emitter *psys, unsigned long msec)
 			int y = p->y;
 			if(x >= 0 && y >= 0 && x < 320 && y < 200) {
 				unsigned char *pptr = fb + y * 320 + x;
+				int val, pcol = p->col / 3;
 				/*
 				int pix = *pptr + p->col;
 				if(pix > 255) pix = 255;
 				*pptr = pix;
 				*/
-				*pptr = p->col;
+				val = *pptr + pcol;
+				*pptr = val > 63 ? 63 : val;
+				pcol >>= 1;
+				val = pptr[1] + pcol;
+				pptr[1] = val > 63 ? 63 : val;
+				val = pptr[-1] + pcol;
+				pptr[-1] = val > 63 ? 63 : val;
+				val = pptr[320] + pcol;
+				pptr[320] = val > 63 ? 63 : val;
+				val = pptr[-320] + pcol;
+				pptr[-320] = val > 63 ? 63 : val;
 			}
 		}
 		p++;
