@@ -107,9 +107,22 @@ void splash_screen(void)
 	image_color_offset(&img_tex, FX_PAL_OFFS);
 	img_tex.width = img_tex.height;
 
-	create_emitter(&psys, 1024);
+	create_emitter(&psys, 8192);
+	psys.spawn_rate = SPAWN_PER_SEC(3000, 0);
+	psys.plife = 1300;
+	psys.damping = 1.0;
+	psys.grav_y = -20;
 	psys.x = 160;
 	psys.y = 100;
+	psys.x_range = 5;
+	psys.y_range = 5;
+	psys.plife_range = 800;
+	psys.pcol_start = 255;
+	psys.pcol_end = 192;
+	psys.curve_cv = (float*)curve_256;
+	psys.curve_num_cv = sizeof curve_256 / sizeof *curve_256;
+	psys.curve_scale_x = 40.0f;
+	psys.curve_scale_y = -40.0f;
 
 	while(kb_getkey() >= 0);	/* empty any input queues */
 
@@ -172,15 +185,24 @@ static void setup_video(void)
 		col++;
 	}
 
-	//XXX
-	set_pal_entry(255, 255, 255, 255);
+	//XXX palette for the particle effect
+	for(i=0; i<64; i++) {
+		int idx = 63 - i;
+		set_pal_entry(i + 192, firepal[idx][0], firepal[idx][1], firepal[idx][2]);
+	}
 }
 
 static void draw(unsigned long msec)
 {
+	float t;
 	if(msec < TUN_DUR) {
 		//draw_tunnel(msec);
 	}
+
+	t = (float)msec / (float)TUN_DUR * 1.5f;
+	if(t > 1.0f) t = 1.0f;
+	psys.curve_tend = t;
+	psys.spawn_rate = SPAWN_PER_SEC((long)(t * 2500) + 200, 0);
 
 	update_psys(&psys, msec);
 	draw_psys(&psys, msec);
@@ -204,6 +226,7 @@ static void draw_tunnel(unsigned long msec)
 	int blursel, bluroffs;
 	unsigned long anmt;
 
+	/*
 	if(msec < FADEIN_DUR) {
 		for(i=FX_PAL_OFFS; i<256; i++) {
 			int r = tunpal[i].r * msec / FADEIN_DUR;
@@ -220,6 +243,7 @@ static void draw_tunnel(unsigned long msec)
 			set_pal_entry(i, r, g, b);
 		}
 	}
+	*/
 
 	anmt = msec * msec / 3000;
 
@@ -308,9 +332,14 @@ static void draw_psys(struct emitter *psys, unsigned long msec)
 		if(p->life > 0) {
 			int x = p->x;
 			int y = p->y;
-			printf("p(%ld) %d %d\n", p->life, (int)p->x, (int)p->y);
 			if(x >= 0 && y >= 0 && x < 320 && y < 200) {
-				fb[y * 320 + x] = 0xff;
+				unsigned char *pptr = fb + y * 320 + x;
+				/*
+				int pix = *pptr + p->col;
+				if(pix > 255) pix = 255;
+				*pptr = pix;
+				*/
+				*pptr = p->col;
 			}
 		}
 		p++;
