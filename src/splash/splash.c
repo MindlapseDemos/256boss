@@ -109,21 +109,21 @@ void splash_screen(void)
 	img_tex.width = img_tex.height;
 
 	create_emitter(&psys, 8192);
-	psys.spawn_rate = SPAWN_PER_SEC(500, 0);
-	psys.plife = 1300;
+	psys.spawn_rate = SPAWN_PER_SEC(4000, 0);
+	psys.plife = 1000;
 	psys.damping = 1.0;
 	psys.grav_y = -20;
 	psys.x = 160;
 	psys.y = 100;
 	psys.x_range = 5;
 	psys.y_range = 5;
-	psys.plife_range = 800;
+	psys.plife_range = 500;
 	psys.pcol_start = 63;
 	psys.pcol_end = 0;
 	psys.curve_cv = (float*)curve_256;
 	psys.curve_num_cv = sizeof curve_256 / sizeof *curve_256;
-	psys.curve_scale_x = 40.0f;
-	psys.curve_scale_y = -40.0f;
+	psys.curve_scale_x = 45.0f;
+	psys.curve_scale_y = -45.0f;
 
 	while(kb_getkey() >= 0);	/* empty any input queues */
 
@@ -359,7 +359,13 @@ static void setup_psys_cmap(void)
 	int i;
 
 	for(i=0; i<64; i++) {
-		int idx = 63 - i;
-		set_pal_entry(i, firepal[idx][0], firepal[idx][1], firepal[idx][2]);
+		set_pal_entry(i, firepal[i][0], firepal[i][1], firepal[i][2]);
+		/*
+		int r = 255 * i / 64;
+		int g = 100 * i / 64;
+		int b = 32 * i / 64;
+		set_pal_entry(i, r, g, b);
+		*/
 	}
+	set_pal_entry(0, 0, 0, 0);
 }

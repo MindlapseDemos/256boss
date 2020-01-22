@@ -10,6 +10,7 @@ csrc = $(wildcard src/*.c) \
 	   $(wildcard libs/zlib/*.c) \
 	   $(wildcard libs/libpng/*.c)
 ssrc = $(wildcard src/*.s) \
+	   $(wildcard src/splash/*.s) \
 	   $(wildcard src/libc/*.s) \
 	   $(wildcard src/boot/*.s)
 Ssrc = $(wildcard src/*.S)
