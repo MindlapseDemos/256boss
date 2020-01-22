@@ -37,8 +37,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 static void setup_video(void);
 static void draw(unsigned long msec);
 static void draw_tunnel(unsigned long msec);
-static void draw_psys(struct emitter *psys, unsigned long msec);
 static int precalc_tunnel(void);
+static void draw_psys(struct emitter *psys, unsigned long msec);
+static void setup_psys_cmap(void);
 
 
 static unsigned char *fb;
@@ -185,11 +186,7 @@ static void setup_video(void)
 		col++;
 	}
 
-	//XXX palette for the particle effect
-	for(i=0; i<64; i++) {
-		int idx = 63 - i;
-		set_pal_entry(i, firepal[idx][0], firepal[idx][1], firepal[idx][2]);
-	}
+	setup_psys_cmap();
 }
 
 static void draw(unsigned long msec)
@@ -199,7 +196,7 @@ static void draw(unsigned long msec)
 		//draw_tunnel(msec);
 	}
 
-	t = (float)msec / (float)TUN_DUR * 1.5f;
+	t = (float)msec / (float)TUN_DUR * 2.0f;
 	if(t > 1.0f) t = 1.0f;
 	psys.curve_tend = t;
 	psys.spawn_rate = SPAWN_PER_SEC((long)(t * 2500) + 200, 0);
@@ -354,5 +351,15 @@ static void draw_psys(struct emitter *psys, unsigned long msec)
 			}
 		}
 		p++;
+	}
+}
+
+static void setup_psys_cmap(void)
+{
+	int i;
+
+	for(i=0; i<64; i++) {
+		int idx = 63 - i;
+		set_pal_entry(i, firepal[idx][0], firepal[idx][1], firepal[idx][2]);
 	}
 }
