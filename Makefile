@@ -91,6 +91,8 @@ $(elf): $(obj)
 %.o: %.S
 	$(CC) -o $@ $(CFLAGS) -c $<
 
+src/splash/data.o: src/splash/data.s data/grad
+
 -include $(dep)
 
 %.d: %.c

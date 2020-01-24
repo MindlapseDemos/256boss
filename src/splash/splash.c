@@ -196,10 +196,12 @@ static void draw(unsigned long msec)
 		//draw_tunnel(msec);
 	}
 
+	memset(fb, 0, 64000);
+
 	t = (float)msec / (float)TUN_DUR * 2.0f;
 	if(t > 1.0f) t = 1.0f;
 	psys.curve_tend = t;
-	psys.spawn_rate = SPAWN_PER_SEC((long)(t * 2500) + 200, 0);
+	psys.spawn_rate = SPAWN_PER_SEC((long)(t * 4000) + 200, 0);
 
 	update_psys(&psys, msec);
 	draw_psys(&psys, msec);
