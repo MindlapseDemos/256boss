@@ -50,6 +50,8 @@ static struct cmapent tunpal[256];
 
 enum {ST_TUNNEL, ST_FLAME} state;
 
+#define UI_COL_OFFS			192
+
 #define TUN_FADEOUT_START	10000
 #define TUN_FADEOUT_DUR		1000
 #define TUN_DUR				(TUN_FADEOUT_START + TUN_FADEOUT_DUR)
@@ -61,7 +63,6 @@ enum {ST_TUNNEL, ST_FLAME} state;
 
 
 #define HEADER_HEIGHT	17
-#define FX_HEIGHT		(200 - HEADER_HEIGHT)
 #define FX_TEX_SIZE		128
 #define FX_TEX_PITCH	(FX_TEX_SIZE << 2)
 
@@ -75,7 +76,7 @@ enum {ST_TUNNEL, ST_FLAME} state;
 #define TUN_WIDTH		450
 #define TUN_HEIGHT		300
 #define TUN_PAN_XSZ		(TUN_WIDTH - 320)
-#define TUN_PAN_YSZ		(TUN_HEIGHT - FX_HEIGHT)
+#define TUN_PAN_YSZ		TUN_HEIGHT
 struct tunnel {
 	unsigned short x, y;
 	unsigned char fog;
@@ -86,6 +87,7 @@ static struct emitter psys;
 
 void splash_screen(void)
 {
+	int i;
 	long msec;
 
 	if(init_datapath() == -1) {
@@ -108,6 +110,10 @@ void splash_screen(void)
 		printf("splash_screen: failed to load UI image\n");
 		goto end;
 	}
+	for(i=0; i<img_ui.width * img_ui.height; i++) {
+		img_ui.pixels[i] += UI_COL_OFFS;
+	}
+
 	if(load_image(&img_tex, datafile("sstex2.png")) == -1 || img_tex.bpp != 8) {
 		printf("splash_screen: failed to load texture\n");
 		goto end;
@@ -169,15 +175,6 @@ static void setup_video(void)
 	set_vga_mode(0x13);
 	con_scr_disable();
 
-	col = img_ui.cmap;
-	for(i=0; i<img_ui.cmap_ncolors; i++) {
-		set_pal_entry(i, col->r, col->g, col->b);
-		tunpal[i].r = col->r;
-		tunpal[i].g = col->g;
-		tunpal[i].b = col->b;
-		col++;
-	}
-
 	col = img_tex.cmap;
 	for(i=0; i<img_tex.cmap_ncolors; i++) {
 		for(j=0; j<FX_FOG_LEVELS; j++) {
@@ -196,6 +193,8 @@ static void setup_video(void)
 
 static void draw(long msec)
 {
+	msec += TUN_DUR - 500;
+
 	if(msec < TUN_DUR) {
 		draw_tunnel(msec);
 	} else if(msec - TUN_DUR < FLAME_DUR) {
@@ -205,7 +204,9 @@ static void draw(long msec)
 		if(msec <= FLAME_FADEIN_DUR) {
 			setup_psys_cmap(msec);
 		}
-		memset(fb, 0, 64000);
+
+		memcpy(fb, img_ui.pixels, HEADER_HEIGHT * 320);
+		memset(fb + HEADER_HEIGHT * 320, 0, 64000);
 
 		t = (float)msec / (float)FLAME_DUR * 3.0f;
 		if(t > 1.0f) t = 1.0f;
@@ -265,11 +266,9 @@ static void draw_tunnel(long msec)
 	xoffs = (int)(cos(t * 3.0) * shake * (TUN_PAN_XSZ / 2) + (TUN_PAN_XSZ / 2));
 	yoffs = (int)(sin(t * 4.0) * shake * (TUN_PAN_YSZ / 2) + (TUN_PAN_YSZ / 2));
 
-	memcpy(fb, img_ui.pixels, HEADER_HEIGHT * 320);
-
 	tun = tunlut + yoffs * TUN_WIDTH + xoffs;
-	pptr = fb + HEADER_HEIGHT * 320;
-	for(i=0; i<FX_HEIGHT; i++) {
+	pptr = fb;
+	for(i=0; i<200; i++) {
 		for(j=0; j<320; j++) {
 			if(tun->fog >= FX_FOG_LEVELS) {
 				*pptr++ = 0;
@@ -365,6 +364,7 @@ static void draw_psys(struct emitter *psys, long msec)
 static void setup_psys_cmap(long msec)
 {
 	int i;
+	struct cmapent *col;
 
 	for(i=0; i<64; i++) {
 		int r = 255 + (firepal[i][0] - 255) * msec / FLAME_FADEIN_DUR;
@@ -373,4 +373,15 @@ static void setup_psys_cmap(long msec)
 		set_pal_entry(i, r, g, b);
 		//set_pal_entry(i, firepal[i][0], firepal[i][1], firepal[i][2]);
 	}
+
+	col = img_ui.cmap;
+	for(i=0; i<img_ui.cmap_ncolors; i++) {
+		int idx = i + UI_COL_OFFS;
+		int r = 255 + (col->r - 255) * msec / FLAME_FADEIN_DUR;
+		int g = 255 + (col->g - 255) * msec / FLAME_FADEIN_DUR;
+		int b = 255 + (col->b - 255) * msec / FLAME_FADEIN_DUR;
+		set_pal_entry(idx, r, g, b);
+		col++;
+	}
+
 }
