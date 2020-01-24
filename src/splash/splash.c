@@ -35,22 +35,29 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "psys.h"
 
 static void setup_video(void);
-static void draw(unsigned long msec);
-static void draw_tunnel(unsigned long msec);
+static void draw(long msec);
+static void draw_tunnel(long msec);
 static int precalc_tunnel(void);
-static void draw_psys(struct emitter *psys, unsigned long msec);
-static void setup_psys_cmap(void);
+static void draw_psys(struct emitter *psys, long msec);
+static void setup_psys_cmap(long msec);
 
 
 static unsigned char *fb;
 static unsigned char *vmem = (unsigned char*)0xa0000;
 static struct image img_ui, img_tex;
-static unsigned long start_ticks;
+static long start_ticks;
 static struct cmapent tunpal[256];
 
+enum {ST_TUNNEL, ST_FLAME} state;
+
 #define TUN_FADEOUT_START	10000
-#define TUN_FADEOUT_DUR		500
-#define TUN_DUR				(TUN_FADEOUT_START + TUN_FADEOUT_DUR + 1000)
+#define TUN_FADEOUT_DUR		1000
+#define TUN_DUR				(TUN_FADEOUT_START + TUN_FADEOUT_DUR)
+
+#define FLAME_DUR			4000
+#define FLAME_FADEIN_DUR	500
+
+#define SPLASH_DUR			(TUN_DUR + FLAME_DUR)
 
 
 #define HEADER_HEIGHT	17
@@ -79,7 +86,7 @@ static struct emitter psys;
 
 void splash_screen(void)
 {
-	unsigned long msec;
+	long msec;
 
 	if(init_datapath() == -1) {
 		printf("splash_screen: failed to locate the data dir\n");
@@ -131,7 +138,7 @@ void splash_screen(void)
 	start_ticks = nticks;
 	msec = 0;
 
-	while(msec < TUN_DUR) {
+	while(msec < SPLASH_DUR) {
 		halt_cpu();
 		if(kb_getkey() >= 0) {
 			break;
@@ -185,26 +192,29 @@ static void setup_video(void)
 		}
 		col++;
 	}
-
-	setup_psys_cmap();
 }
 
-static void draw(unsigned long msec)
+static void draw(long msec)
 {
-	float t;
 	if(msec < TUN_DUR) {
-		//draw_tunnel(msec);
+		draw_tunnel(msec);
+	} else if(msec - TUN_DUR < FLAME_DUR) {
+		float t;
+
+		msec -= TUN_DUR;
+		if(msec <= FLAME_FADEIN_DUR) {
+			setup_psys_cmap(msec);
+		}
+		memset(fb, 0, 64000);
+
+		t = (float)msec / (float)FLAME_DUR * 3.0f;
+		if(t > 1.0f) t = 1.0f;
+		psys.curve_tend = t;
+		psys.spawn_rate = SPAWN_PER_SEC((long)(t * 3000) + 200, 0);
+
+		update_psys(&psys, msec);
+		draw_psys(&psys, msec);
 	}
-
-	memset(fb, 0, 64000);
-
-	t = (float)msec / (float)TUN_DUR * 2.0f;
-	if(t > 1.0f) t = 1.0f;
-	psys.curve_tend = t;
-	psys.spawn_rate = SPAWN_PER_SEC((long)(t * 4000) + 200, 0);
-
-	update_psys(&psys, msec);
-	draw_psys(&psys, msec);
 
 	wait_vsync();
 	memcpy(vmem, fb, 64000);
@@ -216,16 +226,15 @@ static void draw(unsigned long msec)
 #define TUN_FLASH_R	221
 #define TUN_FLASH_G	234
 #define TUN_FLASH_B	239
-static void draw_tunnel(unsigned long msec)
+static void draw_tunnel(long msec)
 {
 	int i, j, tx, ty, xoffs, yoffs;
 	struct tunnel *tun;
 	unsigned char *pptr;
 	float shake, t;
 	int blursel, bluroffs;
-	unsigned long anmt;
+	long anmt;
 
-	/*
 	if(msec < FADEIN_DUR) {
 		for(i=FX_PAL_OFFS; i<256; i++) {
 			int r = tunpal[i].r * msec / FADEIN_DUR;
@@ -242,7 +251,6 @@ static void draw_tunnel(unsigned long msec)
 			set_pal_entry(i, r, g, b);
 		}
 	}
-	*/
 
 	anmt = msec * msec / 3000;
 
@@ -319,12 +327,10 @@ static int precalc_tunnel(void)
 	return 0;
 }
 
-static void draw_psys(struct emitter *psys, unsigned long msec)
+static void draw_psys(struct emitter *psys, long msec)
 {
 	int i;
 	struct particle *p;
-
-	memset(fb, 0, 64000);
 
 	p = psys->plist;
 	for(i=0; i<psys->pmax; i++) {
@@ -356,18 +362,15 @@ static void draw_psys(struct emitter *psys, unsigned long msec)
 	}
 }
 
-static void setup_psys_cmap(void)
+static void setup_psys_cmap(long msec)
 {
 	int i;
 
 	for(i=0; i<64; i++) {
-		set_pal_entry(i, firepal[i][0], firepal[i][1], firepal[i][2]);
-		/*
-		int r = 255 * i / 64;
-		int g = 100 * i / 64;
-		int b = 32 * i / 64;
+		int r = 255 + (firepal[i][0] - 255) * msec / FLAME_FADEIN_DUR;
+		int g = 255 + (firepal[i][1] - 255) * msec / FLAME_FADEIN_DUR;
+		int b = 255 + (firepal[i][2] - 255) * msec / FLAME_FADEIN_DUR;
 		set_pal_entry(i, r, g, b);
-		*/
+		//set_pal_entry(i, firepal[i][0], firepal[i][1], firepal[i][2]);
 	}
-	set_pal_entry(0, 0, 0, 0);
 }
