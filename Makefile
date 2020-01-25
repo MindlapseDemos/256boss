@@ -1,6 +1,7 @@
 version = 0.1
 
 csrc = $(wildcard src/*.c) \
+	   $(wildcard src/splash/*.c) \
 	   $(wildcard src/libc/*.c) \
 	   $(wildcard src/tui/*.c) \
 	   $(wildcard src/gui/*.c) \
@@ -9,6 +10,7 @@ csrc = $(wildcard src/*.c) \
 	   $(wildcard libs/zlib/*.c) \
 	   $(wildcard libs/libpng/*.c)
 ssrc = $(wildcard src/*.s) \
+	   $(wildcard src/splash/*.s) \
 	   $(wildcard src/libc/*.s) \
 	   $(wildcard src/boot/*.s)
 Ssrc = $(wildcard src/*.S)
@@ -88,6 +90,8 @@ $(elf): $(obj)
 
 %.o: %.S
 	$(CC) -o $@ $(CFLAGS) -c $<
+
+src/splash/data.o: src/splash/data.s data/grad
 
 -include $(dep)
 
