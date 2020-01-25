@@ -76,7 +76,7 @@ enum {ST_TUNNEL, ST_FLAME} state;
 #define TUN_WIDTH		450
 #define TUN_HEIGHT		300
 #define TUN_PAN_XSZ		(TUN_WIDTH - 320)
-#define TUN_PAN_YSZ		TUN_HEIGHT
+#define TUN_PAN_YSZ		(TUN_HEIGHT - 200)
 struct tunnel {
 	unsigned short x, y;
 	unsigned char fog;
@@ -193,7 +193,7 @@ static void setup_video(void)
 
 static void draw(long msec)
 {
-	msec += TUN_DUR - 500;
+	//msec += TUN_DUR - 500;
 
 	if(msec < TUN_DUR) {
 		draw_tunnel(msec);
