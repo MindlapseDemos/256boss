@@ -162,6 +162,7 @@ int csprite(struct image *img, int x, int y, int xsz, int ysz)
 	int i, j, numops, mode, new_mode, start, skip_acc;
 	unsigned char *pptr = img->pixels + y * img->scansz + x;
 	struct csop *ops, *optr;
+	uint32_t packed;
 
 	ops = optr = alloca((xsz + 1) * ysz * sizeof *ops);
 
@@ -226,20 +227,34 @@ int csprite(struct image *img, int x, int y, int xsz, int ysz)
 			}
 
 			for(j=0; j<optr->len / 4; j++) {
-				printf("\tmovl $0x%x, %d(%%edx)\n", *(uint32_t*)pptr, j * 4);
+				packed = *(uint32_t*)pptr;
+				if(cmap_offs) {
+					uint8_t *p = (uint8_t*)&packed;
+					p[0] += cmap_offs;
+					p[1] += cmap_offs;
+					p[2] += cmap_offs;
+					p[3] += cmap_offs;
+				}
+				printf("\tmovl $0x%x, %d(%%edx)\n", packed, j * 4);
 				pptr += 4;
 			}
 			j *= 4;
 			switch(optr->len % 4) {
 			case 3:
-				printf("\tmovb $0x%x, %d(%%edx)\n", (unsigned int)*pptr++, j++);
+				printf("\tmovb $0x%x, %d(%%edx)\n", ((unsigned int)*pptr++ + cmap_offs) & 0xff, j++);
 			case 2:
-				printf("\tmovw $0x%x, %d(%%edx)\n", (unsigned int)*(uint16_t*)pptr, j);
+				packed = *(uint16_t*)pptr & 0xffff;
+				if(cmap_offs) {
+					uint8_t *p = (uint8_t*)&packed;
+					p[0] += cmap_offs;
+					p[1] += cmap_offs;
+				}
+				printf("\tmovw $0x%x, %d(%%edx)\n", packed, j);
 				pptr += 2;
 				j += 2;
 				break;
 			case 1:
-				printf("\tmovb $0x%x, %d(%%edx)\n", (unsigned int)*pptr++, j++);
+				printf("\tmovb $0x%x, %d(%%edx)\n", ((unsigned int)*pptr++ + cmap_offs) & 0xff, j++);
 				break;
 			}
 

@@ -19,7 +19,7 @@ dep = $(obj:.o=.d)
 elf = 256boss.elf
 bin = 256boss.bin
 
-ssrc += data/ssfontbig.s
+ssrc += data/ssfontbig.s data/bos48.s data/bos64.s data/bos96.s data/bos128.s
 
 warn = -pedantic -Wall
 #opt = -O2
@@ -143,3 +143,15 @@ tools/csprite/csprite:
 
 data/ssfontbig.s: data/256boss.png tools/csprite/csprite
 	tools/csprite/csprite -n ssfontbig -s 16x16 -r 288x32+32+17 $< >$@
+
+data/bos48.s: data/bos.png tools/csprite/csprite
+	tools/csprite/csprite -coffset 64 -n bos48 -s 30x48 -r 90x48+120+224 $< >$@
+
+data/bos64.s: data/bos.png tools/csprite/csprite
+	tools/csprite/csprite -coffset 64 -n bos64 -s 40x64 -r 120x64+0+224 $< >$@
+
+data/bos96.s: data/bos.png tools/csprite/csprite
+	tools/csprite/csprite -coffset 64 -n bos96 -s 60x96 -r 180x96+0+128 $< >$@
+
+data/bos128.s: data/bos.png tools/csprite/csprite
+	tools/csprite/csprite -coffset 64 -n bos128 -s 80x128 -r 240x128+0+0 $< >$@

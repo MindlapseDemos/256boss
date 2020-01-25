@@ -41,6 +41,11 @@ static int precalc_tunnel(void);
 static void draw_psys(struct emitter *psys, long msec);
 static void setup_psys_cmap(long msec);
 
+/* data/bos.s */
+void bos48(void *fb, int x, int y, int idx);
+void bos64(void *fb, int x, int y, int idx);
+void bos96(void *fb, int x, int y, int idx);
+void bos128(void *fb, int x, int y, int idx);
 
 static unsigned char *fb;
 static unsigned char *vmem = (unsigned char*)0xa0000;
@@ -48,9 +53,8 @@ static struct image img_ui, img_tex;
 static long start_ticks;
 static struct cmapent tunpal[256];
 
-enum {ST_TUNNEL, ST_FLAME} state;
-
 #define UI_COL_OFFS			192
+#define TEXT_COL_OFFS		64
 
 #define TUN_FADEOUT_START	10000
 #define TUN_FADEOUT_DUR		1000
@@ -191,9 +195,13 @@ static void setup_video(void)
 	}
 }
 
+static int bosx[] = {100, 130, 160, 190};
+static const int bos_spr[] = {0, 1, 2, 2};
+
 static void draw(long msec)
 {
-	//msec += TUN_DUR - 500;
+	int i;
+	msec += TUN_DUR - 500;
 
 	if(msec < TUN_DUR) {
 		draw_tunnel(msec);
@@ -215,6 +223,10 @@ static void draw(long msec)
 
 		update_psys(&psys, msec);
 		draw_psys(&psys, msec);
+
+		for(i=0; i<4; i++) {
+			bos48(fb, bosx[i], 120, bos_spr[i]);
+		}
 	}
 
 	wait_vsync();
@@ -382,6 +394,12 @@ static void setup_psys_cmap(long msec)
 		int b = 255 + (col->b - 255) * msec / FLAME_FADEIN_DUR;
 		set_pal_entry(idx, r, g, b);
 		col++;
+	}
+
+	for(i=0; i<30; i++) {
+		int idx = i + TEXT_COL_OFFS;
+		int col = i * 255 / 30;
+		set_pal_entry(idx, col, col, col);
 	}
 
 }
