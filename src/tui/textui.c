@@ -1,6 +1,6 @@
 /*
 256boss - bootable launcher for 256byte intros
-Copyright (C) 2018-2019  John Tsiombikas <nuclear@member.fsf.org>
+Copyright (C) 2018-2020  John Tsiombikas <nuclear@member.fsf.org>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -260,6 +260,7 @@ static int fsview_keypress(int c)
 		break;
 
 	case KB_HOME:
+	case KB_LEFT:
 		if(fsv_sel_first(&fsview)) {
 			INVALIDATE();
 		}
@@ -267,6 +268,7 @@ static int fsview_keypress(int c)
 		break;
 
 	case KB_END:
+	case KB_RIGHT:
 		if(fsv_sel_last(&fsview)) {
 			INVALIDATE();
 		}

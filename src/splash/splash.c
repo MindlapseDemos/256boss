@@ -1,6 +1,6 @@
 /*
 256boss - bootable launcher for 256byte intros
-Copyright (C) 2018-2019  John Tsiombikas <nuclear@member.fsf.org>
+Copyright (C) 2018-2020  John Tsiombikas <nuclear@member.fsf.org>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -15,9 +15,6 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-/* Splash screen showing how to change between UI modes and how to fallback
- * to text-mode if necessary. Uses mode 13h to ensure maximum compatibility.
- */
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
@@ -62,6 +59,8 @@ static struct cmapent tunpal[256];
 
 #define FLAME_DUR			4000
 #define FLAME_FADEIN_DUR	500
+#define FLAME_FADEOUT_DUR	500
+#define FLAME_FADEOUT_START	(FLAME_DUR - FLAME_FADEOUT_DUR)
 
 #define SPLASH_DUR			(TUN_DUR + FLAME_DUR)
 
@@ -131,7 +130,7 @@ void splash_screen(void)
 	psys.damping = 1.0;
 	psys.grav_y = -20;
 	psys.x = 160;
-	psys.y = 100;
+	psys.y = 115;
 	psys.x_range = 5;
 	psys.y_range = 5;
 	psys.plife_range = 500;
@@ -195,13 +194,19 @@ static void setup_video(void)
 	}
 }
 
-static int bosx[] = {100, 130, 160, 190};
+static int bosx[] = {111, 143, 175, 207};
 static const int bos_spr[] = {0, 1, 2, 2};
+static void (*bos[])(void*, int, int, int) = { bos128, bos96, bos64, bos48 };
+static int bos_soffs_x[] = {40, 30, 20, 15};
+static int bos_soffs_y[] = {64, 48, 32, 24};
+
+#define BOSS_SPEED	128
+#define BOSS_Y		160
+#define BOSS_DELAY	(FLAME_DUR / 3)
 
 static void draw(long msec)
 {
 	int i;
-	msec += TUN_DUR - 500;
 
 	if(msec < TUN_DUR) {
 		draw_tunnel(msec);
@@ -209,9 +214,7 @@ static void draw(long msec)
 		float t;
 
 		msec -= TUN_DUR;
-		if(msec <= FLAME_FADEIN_DUR) {
-			setup_psys_cmap(msec);
-		}
+		setup_psys_cmap(msec);
 
 		memcpy(fb, img_ui.pixels, HEADER_HEIGHT * 320);
 		memset(fb + HEADER_HEIGHT * 320, 0, 64000);
@@ -224,8 +227,28 @@ static void draw(long msec)
 		update_psys(&psys, msec);
 		draw_psys(&psys, msec);
 
-		for(i=0; i<4; i++) {
-			bos48(fb, bosx[i], 120, bos_spr[i]);
+		msec -= BOSS_DELAY;
+		if(msec >= 0) {
+			int nlen, fidx;
+
+			nlen = msec / BOSS_SPEED + 1;
+			if(nlen > 4) nlen = 4;
+
+			for(i=0; i<nlen; i++) {
+				long tpos = msec - i * BOSS_SPEED;
+				if(tpos > BOSS_SPEED) tpos = BOSS_SPEED;
+
+				fidx = tpos / (BOSS_SPEED / 4);
+				if(fidx > 3) fidx = 3;
+
+				int x = 160 + (bosx[i] - 160) * tpos / BOSS_SPEED;
+				int y = 64 + (BOSS_Y - 64) * tpos / BOSS_SPEED;
+
+				x -= bos_soffs_x[fidx];
+				y -= bos_soffs_y[fidx];
+
+				bos[fidx](fb, x, y, bos_spr[i]);
+			}
 		}
 	}
 
@@ -265,7 +288,7 @@ static void draw_tunnel(long msec)
 		}
 	}
 
-	anmt = msec * msec / 3000;
+	anmt = msec * msec / 2048;
 
 	blursel = (msec - 500) / 1800;
 	if(blursel < 0) blursel = 0;
@@ -351,11 +374,7 @@ static void draw_psys(struct emitter *psys, long msec)
 			if(x >= 0 && y >= 0 && x < 320 && y < 200) {
 				unsigned char *pptr = fb + y * 320 + x;
 				int val, pcol = p->col / 3;
-				/*
-				int pix = *pptr + p->col;
-				if(pix > 255) pix = 255;
-				*pptr = pix;
-				*/
+
 				val = *pptr + pcol;
 				*pptr = val > 63 ? 63 : val;
 				pcol >>= 1;
@@ -378,28 +397,43 @@ static void setup_psys_cmap(long msec)
 	int i;
 	struct cmapent *col;
 
-	for(i=0; i<64; i++) {
-		int r = 255 + (firepal[i][0] - 255) * msec / FLAME_FADEIN_DUR;
-		int g = 255 + (firepal[i][1] - 255) * msec / FLAME_FADEIN_DUR;
-		int b = 255 + (firepal[i][2] - 255) * msec / FLAME_FADEIN_DUR;
-		set_pal_entry(i, r, g, b);
-		//set_pal_entry(i, firepal[i][0], firepal[i][1], firepal[i][2]);
-	}
+	if(msec <= FLAME_FADEIN_DUR) {
+		for(i=0; i<64; i++) {
+			int r = 255 + (firepal[i][0] - 255) * msec / FLAME_FADEIN_DUR;
+			int g = 255 + (firepal[i][1] - 255) * msec / FLAME_FADEIN_DUR;
+			int b = 255 + (firepal[i][2] - 255) * msec / FLAME_FADEIN_DUR;
+			set_pal_entry(i, r, g, b);
+		}
 
-	col = img_ui.cmap;
-	for(i=0; i<img_ui.cmap_ncolors; i++) {
-		int idx = i + UI_COL_OFFS;
-		int r = 255 + (col->r - 255) * msec / FLAME_FADEIN_DUR;
-		int g = 255 + (col->g - 255) * msec / FLAME_FADEIN_DUR;
-		int b = 255 + (col->b - 255) * msec / FLAME_FADEIN_DUR;
-		set_pal_entry(idx, r, g, b);
-		col++;
-	}
+		col = img_ui.cmap;
+		for(i=0; i<img_ui.cmap_ncolors; i++) {
+			int idx = i + UI_COL_OFFS;
+			int r = 255 + (col->r - 255) * msec / FLAME_FADEIN_DUR;
+			int g = 255 + (col->g - 255) * msec / FLAME_FADEIN_DUR;
+			int b = 255 + (col->b - 255) * msec / FLAME_FADEIN_DUR;
+			set_pal_entry(idx, r, g, b);
+			col++;
+		}
 
-	for(i=0; i<30; i++) {
-		int idx = i + TEXT_COL_OFFS;
-		int col = i * 255 / 30;
-		set_pal_entry(idx, col, col, col);
-	}
+		for(i=0; i<30; i++) {
+			int idx = i + TEXT_COL_OFFS;
+			int col = i * 255 / 30;
+			set_pal_entry(idx, col, col, col);
+		}
 
+	} else if(msec >= FLAME_FADEOUT_START) {
+		long tm = FLAME_FADEOUT_DUR - msec + FLAME_FADEOUT_START;
+		for(i=0; i<64; i++) {
+			int r = firepal[i][0] * tm / FLAME_FADEOUT_DUR;
+			int g = firepal[i][1] * tm / FLAME_FADEOUT_DUR;
+			int b = firepal[i][2] * tm / FLAME_FADEOUT_DUR;
+			set_pal_entry(i, r, g, b);
+		}
+
+		for(i=0; i<30; i++) {
+			int idx = i + TEXT_COL_OFFS;
+			int col = (i * 255 / 30) * tm / FLAME_FADEOUT_DUR;
+			set_pal_entry(idx, col, col, col);
+		}
+	}
 }

@@ -4,9 +4,7 @@ csrc = $(wildcard src/*.c) \
 	   $(wildcard src/splash/*.c) \
 	   $(wildcard src/libc/*.c) \
 	   $(wildcard src/tui/*.c) \
-	   $(wildcard src/gui/*.c) \
 	   $(wildcard src/ui/*.c) \
-	   $(wildcard src/dtx/*.c) \
 	   $(wildcard libs/zlib/*.c) \
 	   $(wildcard libs/libpng/*.c)
 ssrc = $(wildcard src/*.s) \
@@ -19,10 +17,10 @@ dep = $(obj:.o=.d)
 elf = 256boss.elf
 bin = 256boss.bin
 
-ssrc += data/ssfontbig.s data/bos48.s data/bos64.s data/bos96.s data/bos128.s
+ssrc += data/bos48.s data/bos64.s data/bos96.s data/bos128.s
 
 warn = -pedantic -Wall
-#opt = -O2
+opt = -O2
 dbg = -g
 inc = -Isrc -Isrc/libc -Isrc/dtx -Ilibs/libpng -Ilibs/zlib
 def = -DNO_FREETYPE -DNO_OPENGL -DNO_GZCOMPRESS -DVER_STR=\"$(version)\"

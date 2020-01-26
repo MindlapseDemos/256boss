@@ -1,6 +1,6 @@
 /*
 256boss - bootable launcher for 256byte intros
-Copyright (C) 2018-2019  John Tsiombikas <nuclear@member.fsf.org>
+Copyright (C) 2018-2020  John Tsiombikas <nuclear@member.fsf.org>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
