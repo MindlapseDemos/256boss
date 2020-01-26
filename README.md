@@ -43,7 +43,22 @@ details.
 
 Download
 --------
-TODO
+Unless you intend to get involved in the development of 256boss, just grab the
+latest "official" release, which includes everything you need to get up and
+running.
+
+The official releases are available in gzipped-tar, or zip archives. You just
+need one or the other; they are identical. If you don't know which one to get,
+you should probably get the zip file.
+
+256boss latest release (v0.1):
+  - http://nuclear.mutantstargoat.com/sw/256boss/256boss-0.1.zip
+  - http://nuclear.mutantstargoat.com/sw/256boss/256boss-0.1.tar.gz
+
+Although the official releases do contain the full source code, if you intend to
+contribute to 256boss, you should get the latest code directly from our git
+repository on github:
+  - https://github.com/MindlapseDemos/256boss
 
 Setup instructions
 ------------------
