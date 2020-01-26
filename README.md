@@ -29,7 +29,8 @@ demoparty. Just install 256boss on a USB stick, by following our simple
 installation instructions for each platform, copy every 256byte intro you
 want into it, and reboot.
 
-Project website: http://nuclear.mutantstargoat.com/sw/256boss 
+Project website: http://nuclear.mutantstargoat.com/sw/256boss
+
 Source code repository: https://github.com/MindlapseDemos/256boss
 
 License
