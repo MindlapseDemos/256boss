@@ -1,6 +1,6 @@
 /*
 256boss - bootable launcher for 256byte intros
-Copyright (C) 2018-2019  John Tsiombikas <nuclear@member.fsf.org>
+Copyright (C) 2018-2020  John Tsiombikas <nuclear@member.fsf.org>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #define NCOLS	80
 #define NROWS	25
-#define VIS_LINES	(NROWS - 2)
+#define VIS_LINES	(NROWS - 1)
 
 #define ATTR(fg, bg)	((fg) | ((bg) << 4))
 #define ATTR_TX			ATTR(LTGREY, BLACK)

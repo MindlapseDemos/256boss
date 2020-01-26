@@ -25,9 +25,9 @@ than inserting a USB stick, rebooting, and possibly selecting the USB stick from
 a boot menu.
 
 Use it to watch 256byte releases at home, or use it to run a 256byte compo at a
-demoparty. Just create a FAT filesystem on the USB stick, copy every 256byte
-intro you want onto it, and install 256boss on that USB stick by following our
-simple installation instructions for each platform.
+demoparty. Just install 256boss on a USB stick, by following our simple
+installation instructions for each platform, copy every 256byte intro you
+want into it, and reboot.
 
 Project website: http://nuclear.mutantstargoat.com/sw/256boss 
 Source code repository: https://github.com/MindlapseDemos/256boss

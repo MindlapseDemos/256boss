@@ -1,4 +1,5 @@
 version = 0.1
+build = rel
 
 csrc = $(wildcard src/*.c) \
 	   $(wildcard src/splash/*.c) \
@@ -20,11 +21,16 @@ bin = 256boss.bin
 ssrc += data/bos48.s data/bos64.s data/bos96.s data/bos128.s
 
 warn = -pedantic -Wall
-opt = -O2
-dbg = -g
 inc = -Isrc -Isrc/libc -Isrc/dtx -Ilibs/libpng -Ilibs/zlib
-def = -DNO_FREETYPE -DNO_OPENGL -DNO_GZCOMPRESS -DVER_STR=\"$(version)\"
+def = -DNO_GZCOMPRESS -DPNG_NO_WRITE_SUPPORTED -DVER_STR=\"$(version)\"
 gccopt = -fno-pic -ffreestanding -nostdinc -fno-builtin -ffast-math
+
+ifeq ($(build), rel)
+	opt = -O2
+	def += -DNDEBUG
+else
+	dbg = -g
+endif
 
 CFLAGS = $(ccarch) -march=i386 $(warn) $(opt) $(dbg) $(gccopt) $(inc) $(def)
 ASFLAGS = $(asarch) -march=i386 $(dbg) -nostdinc -fno-builtin $(inc)
@@ -139,9 +145,6 @@ data: blank.img
 tools/csprite/csprite:
 	$(MAKE) -C tools/csprite
 
-data/ssfontbig.s: data/256boss.png tools/csprite/csprite
-	tools/csprite/csprite -n ssfontbig -s 16x16 -r 288x32+32+17 $< >$@
-
 data/bos48.s: data/bos.png tools/csprite/csprite
 	tools/csprite/csprite -coffset 64 -n bos48 -s 30x48 -r 90x48+120+224 $< >$@
 
@@ -153,3 +156,8 @@ data/bos96.s: data/bos.png tools/csprite/csprite
 
 data/bos128.s: data/bos.png tools/csprite/csprite
 	tools/csprite/csprite -coffset 64 -n bos128 -s 80x128 -r 240x128+0+0 $< >$@
+
+data/bos48.o: data/bos48.s data/bos.png
+data/bos64.o: data/bos64.s data/bos.png
+data/bos96.o: data/bos96.s data/bos.png
+data/bos128.o: data/bos128.s data/bos.png

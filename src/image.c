@@ -117,6 +117,7 @@ int load_image(struct image *img, const char *fname)
 	return 0;
 }
 
+/*
 int save_image(struct image *img, const char *fname)
 {
 	int i, chan_bits, coltype;
@@ -202,7 +203,7 @@ int save_image(struct image *img, const char *fname)
 	fclose(fp);
 	return 0;
 }
-
+*/
 
 int cmp_image(struct image *a, struct image *b)
 {
