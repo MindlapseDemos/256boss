@@ -1,5 +1,6 @@
 version = 0.1
-build = rel
+#build = rel
+build = dbg
 
 csrc = $(wildcard src/*.c) \
 	   $(wildcard src/splash/*.c) \
@@ -38,6 +39,7 @@ LDFLAGS = $(ldarch) -nostdlib -T 256boss.ld -print-gc-sections
 
 #QEMU_FLAGS = -fda floppy.img -serial file:serial.log -soundhw sb16
 QEMU_FLAGS = -hda disk.img -serial file:serial.log -soundhw sb16
+#QEMU_FLAGS = -hda /dev/sdd -serial file:serial.log -soundhw sb16
 
 ifneq ($(shell uname -m), i386)
 	ccarch = -m32

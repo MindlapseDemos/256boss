@@ -61,6 +61,11 @@ int init_datapath(void)
 
 char *datafile(const char *fname)
 {
+	if(!pathend) {
+		strcpy(pathbuf, fname);
+		return pathbuf;
+	}
+
 	int len = strlen(fname);
 	if(len > max_fname_sz) len = max_fname_sz;
 	memcpy(pathend, fname, len);
