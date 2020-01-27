@@ -70,12 +70,73 @@ Setup instructions
 The 256boss release comes with a pre-generated bootable disk image, ready to be
 written onto a USB stick (if you got the source code from github instead of an
 "official" release, follow the build instructions in the next section first).
-This image contains both the boot loader and operating system itself, as well as
-a small FAT partition where you can write your 256byte intros to access them
+The disk image contains both the boot loader and operating system itself, as well as
+a small FAT partition where you can store your 256-byte intros to access them
 when you boot 256boss.
 
-TODO cont.
+To install from Windows, insert a USB stick, and run the `install.bat` batch
+file. This will start the bundled "rufus" program with the 256boss disk image
+already loaded. Just make sure the correct USB device is selected and click
+"start".
+
+To install from GNU/Linux, insert a USB stick, and identify which device file
+corresponds to it by running `lsblk`, or monitoring `dmesg`.  For the purposes
+of this example we'll assume the USB stick device file is `/dev/sdc`; make sure
+you replace the correct one. Run `dd if=disk.img of=/dev/sdc bs=1M` to install.
+
+Reboot to start 256boss, and make sure to boot from the USB stick. Some
+computers will boot from the USB stick automatically, while others require you
+to press a key (usually `ESC`, `F8`, or `F12`) to pop up a boot selection menu.
+Watch the screen during POST, where a message will most likely appear
+instructing you which key to press. If you're still having trouble booting from
+the USB stick, make sure *legacy boot* is enabled in your BIOS settings.
 
 Build instructions
 ------------------
-Just type make.
+Just run `make`.
+
+To test the build in an emulator, make sure qemu for i386 is installed, and
+invoke `make run`.
+
+If you're trying to build the source code from git, make sure to first copy over
+the `data` directory from an official release.
+
+Tools compiled as part of the build process require `libpng` and `zlib` to be
+installed.
+
+BUGS
+----
+You will most likely encounter two forms of bugs:
+  - 256boss will fail to boot on some computers.
+  - 256boss will fail to run certain 256-byte intros correctly.
+
+Ideally I would like to eliminate both of these problems. And while I can't
+promise that 256boss will ever be 100% compatible with every computer and every
+intro out there, I would appreciate reports of any such bugs you encounter,
+either by email, or even better by opening an issue in the project issue tracker
+on github: https://github.com/MindlapseDemos/256boss/issues
+
+For computer-compatibility bugs make sure to include as much information as
+possible about the nature of the problem, and about your computer. Most relevant
+are going to be computer manufacturer and model (if applicable), CPU,
+motherboard, and BIOS version.
+
+For intro-compatibility bugs, first make sure the problem persists even when the
+intro in question is executed directly after booting into 256boss, without
+having ran other intros previously. This is important, because prior intro
+executions might lead to subtle corruption that will make a subsequent intro (or
+the operating system itself) fail. If possible, try to run the intro in MS-DOS
+or FreeDOS on the same computer, to make sure the bug is in 256boss and not in
+the intro itself.
+
+NOT BUGS
+--------
+If an intro fails to run correctly under MS-DOS or FreeDOS in a certain
+computer, it will probably also fail to run under 256boss.
+
+If an intro needs an adlib card to play music, and your computer doesn't have an
+adlib card, 256boss will not emulate one. You need the hardware the intro is
+written for; 256boss is not an emulator like dosbox.
+
+If a computer is UEFI-only and cannot boot in BIOS (or "legacy" mode), 256boss
+will not boot. It's unlikely for this limitation to be lifted any time soon.
