@@ -56,7 +56,7 @@ you should probably get the zip file.
   - http://nuclear.mutantstargoat.com/sw/256boss/256boss-0.1.zip
   - http://nuclear.mutantstargoat.com/sw/256boss/256boss-0.1.tar.gz
 
-256boss latest release (v0.1) github mirror:
+Github mirror:
   - https://github.com/MindlapseDemos/releases/download/v0.1/256boss-0.1.zip
   - https://github.com/MindlapseDemos/releases/download/v0.1/256boss-0.1.tar.gz
 
@@ -113,17 +113,17 @@ You will most likely encounter two forms of bugs:
 Ideally I would like to eliminate both of these problems. And while I can't
 promise that 256boss will ever be 100% compatible with every computer and every
 intro out there, I would appreciate reports of any such bugs you encounter,
-either by email, or even better by opening an issue in the project issue tracker
+either by email, or preferably by opening an issue in the project issue tracker
 on github: https://github.com/MindlapseDemos/256boss/issues
 
 For computer-compatibility bugs make sure to include as much information as
 possible about the nature of the problem, and about your computer. Most relevant
-are going to be computer manufacturer and model (if applicable), CPU,
+is going to be the computer manufacturer and model (if applicable), CPU,
 motherboard, and BIOS version.
 
 For intro-compatibility bugs, first make sure the problem persists even when the
 intro in question is executed directly after booting into 256boss, without
-having ran other intros previously. This is important, because prior intro
+having ran any other intros previously. This is important, because prior intro
 executions might lead to subtle corruption that will make a subsequent intro (or
 the operating system itself) fail. If possible, try to run the intro in MS-DOS
 or FreeDOS on the same computer, to make sure the bug is in 256boss and not in
