@@ -57,8 +57,8 @@ you should probably get the zip file.
   - http://nuclear.mutantstargoat.com/sw/256boss/256boss-0.1.tar.gz
 
 Github mirror:
-  - https://github.com/MindlapseDemos/releases/download/v0.1/256boss-0.1.zip
-  - https://github.com/MindlapseDemos/releases/download/v0.1/256boss-0.1.tar.gz
+  - https://github.com/MindlapseDemos/256boss/releases/download/v0.1/256boss-0.1.zip
+  - https://github.com/MindlapseDemos/256boss/releases/download/v0.1/256boss-0.1.tar.gz
 
 Although the official releases do contain the full source code, if you intend to
 contribute to 256boss, you should get the latest code directly from our git
