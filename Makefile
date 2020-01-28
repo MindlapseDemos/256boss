@@ -139,6 +139,10 @@ sym: $(elf).sym
 mount: disk.img
 	mount -o loop,offset=1048576 $< /mnt
 
+.PHONY: mountblank
+mountblank: blank.img
+	mount -o loop,offset=1048576 $< /mnt
+
 .PHONY: data
 data: blank.img
 	mcopy -D o -i $<@@1M data/* ::.data

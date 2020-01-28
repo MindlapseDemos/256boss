@@ -1,6 +1,8 @@
 256boss - a bootable launcher for 256byte intros
 ================================================
 
+![256boss](http://nuclear.mutantstargoat.com/sw/256boss/img/256boss_shot-thumb.png)
+
 About
 -----
 256boss is a standalone USB-bootable operating system for running 256byte intros
