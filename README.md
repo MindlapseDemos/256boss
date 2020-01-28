@@ -77,7 +77,7 @@ a small FAT partition where you can store your 256-byte intros to access them
 when you boot 256boss.
 
 ### Windows setup
-![win setup](http://nuclear.mutantstargoat.com/sw/256boss/img/256boss_win_setup.png)
+![win setup](http://nuclear.mutantstargoat.com/sw/256boss/img/256boss_win_setup-thumb.png)
 
 To install from Windows, insert a USB stick, and run the `install.bat` batch
 file. This will start the bundled "rufus" program with the 256boss disk image
@@ -85,7 +85,7 @@ already loaded. Just make sure the correct USB device is selected and click
 "start".
 
 ### GNU/Linux setup
-![GNU/Linux setup](http://nuclear.mutantstargoat.com/sw/256boss/img/256boss_gnulinux_setup.png)
+![GNU/Linux setup](http://nuclear.mutantstargoat.com/sw/256boss/img/256boss_gnulinux_setup-thumb.png)
 
 To install from GNU/Linux, insert a USB stick, and identify which device file
 corresponds to it by running `lsblk`, or monitoring `dmesg`.  For the purposes
