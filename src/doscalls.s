@@ -20,9 +20,47 @@
 dos_int21h_entry:
 	cmp $0x4c, %ah
 	jz exit
+	cmp $0x35, %ah
+	jz getvect
+	cmp $0x25, %ah
+	jz setvect
 	iret
 
 exit:	ljmp $0,$run_com_return
+
+	# ah: 25h
+	# al: vector number
+	# ds:dx: handler
+setvect:
+	push %bx
+	xor %ah, %ah
+	shl $2, %ax
+	push %ds
+	mov %ax, %bx
+	xor %ax, %ax
+	mov %ax, %ds
+	mov %dx, (%bx)
+	add $2, %bx
+	pop %ax
+	mov %ax, (%bx)
+	pop %bx
+	iret
+
+
+	# ah: 35h
+	# al: vector number
+	# result: es:bx
+getvect:
+	xor %ah, %ah
+	shl $2, %ax
+	mov %ax, %bx
+	xor %ax, %ax
+	mov %ax, %es
+	mov %es:(%bx), %ax
+	add $2, %bx
+	mov %es:(%bx), %es
+	mov %ax, %bx
+	iret
 
 	# print character in al
 	.global dos_int29h_entry
