@@ -30,6 +30,7 @@ SECTIONS {
 	.bss ALIGN(4): {
 		_bss_start = .;
 		* (.bss);
+		* (COMMON);
 		. = ALIGN(4);
 		_bss_end = .;
 	}

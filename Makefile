@@ -24,7 +24,7 @@ ssrc += data/bos48.s data/bos64.s data/bos96.s data/bos128.s
 warn = -pedantic -Wall
 inc = -Isrc -Isrc/libc -Isrc/dtx -Ilibs/libpng -Ilibs/zlib
 def = -DNO_GZCOMPRESS -DPNG_NO_WRITE_SUPPORTED -DVER_STR=\"$(version)\"
-gccopt = -fno-pic -ffreestanding -nostdinc -fno-builtin -ffast-math
+gccopt = -fno-pic -ffreestanding -nostdinc -fno-builtin -ffast-math -fcommon
 
 ifeq ($(build), rel)
 	opt = -O2
